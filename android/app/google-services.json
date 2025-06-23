@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "566314236425",
+    "project_id": "manosexpertas-daf73",
+    "storage_bucket": "manosexpertas-daf73.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:566314236425:android:b6713714386b9125df16d8",
+        "android_client_info": {
+          "package_name": "com.example.manos_expertas"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "566314236425-8puubvpvcffthlemmuj67oud5c0jh8h2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.manos_expertas",
+            "certificate_hash": "a770a138007ed75dc59e3b82a4d20778cfb8d9d8"
+          }
+        },
+        {
+          "client_id": "566314236425-j0aak01dpo6vfed4h7jso0fl3eolsome.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4TBOqbgdVq6IexsdHO3XWQ9SISsqgmiQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "566314236425-j0aak01dpo6vfed4h7jso0fl3eolsome.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "566314236425-bsomp72klvtk504ut6edun7g6qtioc12.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.manosExpertas"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
