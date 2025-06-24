@@ -2,23 +2,13 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services") // ✅ sin 'version' ni 'apply false'
+    id("com.google.gms.google-services") // Firebase services
 }
 
 android {
     namespace = "com.example.manos_expertas"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
 
     defaultConfig {
         applicationId = "com.example.manos_expertas"
@@ -28,10 +18,34 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("keystore/mi_key.jks")
+            storePassword = "manos123"
+            keyAlias = "manos_expertas"
+            keyPassword = "manos123"
         }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("release") // Opcional, si usas tu propia keystore en debug
+        }
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
     }
 }
 
