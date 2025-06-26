@@ -3,6 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../widgets/featured_workers_section.dart';
+import '../../widgets/promotional_banner.dart';
+import '../../widgets/recent_services_section.dart';
 
 class HomeClientScreen extends StatefulWidget {
   const HomeClientScreen({super.key});
@@ -177,7 +181,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -193,6 +197,16 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                     children: [
                       const SizedBox(height: 20),
 
+                      // Banner promocional
+                      const PromotionalBanner(),
+
+                      const SizedBox(height: 24),
+
+                      // Sección de técnicos destacados
+                      FeaturedWorkersSection(workers: workers),
+
+                      const SizedBox(height: 24),
+
                       // Sección de categorías
                       _buildCategoriesSection(),
 
@@ -200,6 +214,11 @@ class _HomeClientScreenState extends State<HomeClientScreen>
 
                       // Lista de técnicos
                       _buildWorkersSection(),
+
+                      const SizedBox(height: 24),
+
+                      // Sección de servicios recientes
+                      const RecentServicesSection(),
 
                       const SizedBox(height: 20),
                     ],
@@ -223,7 +242,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -240,12 +259,12 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Manos Expertas',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -253,23 +272,54 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                       '$availableWorkers técnicos disponibles',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.6),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
               ),
+              // Botón de configuración
               Container(
                 height: 40,
                 width: 40,
                 decoration: BoxDecoration(
-                  color: Colors.red[50],
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.3),
+                  ),
+                ),
+                child: IconButton(
+                  onPressed: () => context.go('/settings'),
+                  icon: Icon(
+                    Icons.settings,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  tooltip: 'Configuración',
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Botón de cerrar sesión
+              Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
                   onPressed: () => _showLogoutDialog(context),
-                  icon: Icon(Icons.logout, size: 20, color: Colors.red[400]),
+                  icon: Icon(
+                    Icons.logout,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                   tooltip: 'Cerrar sesión',
                 ),
               ),
@@ -281,17 +331,24 @@ class _HomeClientScreenState extends State<HomeClientScreen>
           Container(
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: Theme.of(context).colorScheme.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Buscar técnicos o servicios...',
-                hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                hintStyle: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                  fontSize: 14,
+                ),
                 prefixIcon: Icon(
                   Icons.search,
-                  color: Colors.grey[500],
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withOpacity(0.6),
                   size: 20,
                 ),
                 suffixIcon:
@@ -302,7 +359,9 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                           },
                           icon: Icon(
                             Icons.clear,
-                            color: Colors.grey[500],
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant.withOpacity(0.6),
                             size: 18,
                           ),
                         )
@@ -326,12 +385,12 @@ class _HomeClientScreenState extends State<HomeClientScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Categorías de servicio',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
@@ -356,10 +415,18 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                     duration: const Duration(milliseconds: 200),
                     width: 80,
                     decoration: BoxDecoration(
-                      color: isSelected ? color.withOpacity(0.1) : Colors.white,
+                      color:
+                          isSelected
+                              ? color.withOpacity(0.1)
+                              : Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isSelected ? color : Colors.grey[200]!,
+                        color:
+                            isSelected
+                                ? color
+                                : Theme.of(
+                                  context,
+                                ).colorScheme.outline.withOpacity(0.3),
                         width: isSelected ? 2 : 1,
                       ),
                       boxShadow:
@@ -405,7 +472,12 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                             fontSize: 11,
                             fontWeight:
                                 isSelected ? FontWeight.w600 : FontWeight.w500,
-                            color: isSelected ? color : Colors.grey[700],
+                            color:
+                                isSelected
+                                    ? color
+                                    : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface.withOpacity(0.7),
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -432,12 +504,12 @@ class _HomeClientScreenState extends State<HomeClientScreen>
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 'Técnicos',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
@@ -448,16 +520,22 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue[200]!),
+                    border: Border.all(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.3),
+                    ),
                   ),
                   child: Text(
                     '${workers.length} encontrados',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.blue[600],
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ),
@@ -491,7 +569,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -503,20 +581,27 @@ class _HomeClientScreenState extends State<HomeClientScreen>
       ),
       child: Column(
         children: [
-          Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+          Icon(
+            Icons.search_off,
+            size: 48,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          ),
           const SizedBox(height: 16),
           Text(
             'No se encontraron técnicos',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Intenta cambiar los filtros o la búsqueda',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -529,7 +614,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -581,10 +666,10 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                           Expanded(
                             child: Text(
                               worker['name'],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -596,7 +681,9 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                         worker['specialty'],
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.6),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -607,16 +694,18 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                           const SizedBox(width: 4),
                           Text(
                             '${worker['rating']}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Icon(
                             Icons.work_outline,
-                            color: Colors.grey[500],
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.5),
                             size: 16,
                           ),
                           const SizedBox(width: 4),
@@ -624,7 +713,9 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                             '${worker['completedJobs']} trabajos',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ],
@@ -641,13 +732,15 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                     height: 32,
                     width: 32,
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: Theme.of(context).colorScheme.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       Icons.more_vert,
                       size: 18,
-                      color: Colors.grey[600],
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant.withOpacity(0.6),
                     ),
                   ),
                   shape: RoundedRectangleBorder(
@@ -707,15 +800,17 @@ class _HomeClientScreenState extends State<HomeClientScreen>
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: Theme.of(context).colorScheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 worker['description'],
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey[700],
-                  height: 1.3,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withOpacity(0.8),
+                  height: 1.4,
                 ),
               ),
             ),
@@ -749,14 +844,14 @@ class _HomeClientScreenState extends State<HomeClientScreen>
   }
 
   Widget _buildAvailabilityBadge(bool isAvailable) {
+    final color = isAvailable ? Colors.green : Colors.red;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isAvailable ? Colors.green[50] : Colors.red[50],
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isAvailable ? Colors.green[200]! : Colors.red[200]!,
-        ),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -765,7 +860,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             height: 6,
             width: 6,
             decoration: BoxDecoration(
-              color: isAvailable ? Colors.green[400] : Colors.red[400],
+              color: color,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -775,7 +870,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isAvailable ? Colors.green[600] : Colors.red[600],
+              color: color,
             ),
           ),
         ],
@@ -816,7 +911,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -838,8 +933,8 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 elevation: 0,
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
@@ -853,15 +948,17 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             height: 48,
             width: 48,
             decoration: BoxDecoration(
-              color: Colors.blue[50],
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue[200]!),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              ),
             ),
             child: IconButton(
               onPressed: () => context.go('/chats'),
               icon: Icon(
                 Icons.chat_bubble_outline,
-                color: Colors.blue[600],
+                color: Theme.of(context).colorScheme.primary,
                 size: 20,
               ),
               tooltip: 'Ir al chat',
@@ -937,9 +1034,10 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                 Expanded(
                   child: Text(
                     worker['name'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -967,7 +1065,12 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                 const SizedBox(height: 8),
                 Text(
                   worker['description'],
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
                 ),
               ],
             ),
@@ -976,7 +1079,11 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                 onPressed: () => Navigator.pop(context),
                 child: Text(
                   'Cerrar',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
                 ),
               ),
             ],
@@ -994,13 +1101,20 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             width: 80,
             child: Text(
               '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(color: Colors.grey[700], fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -1016,17 +1130,30 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text(
+            title: Text(
               'Solicitar Servicio',
-              style: TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
-            content: const Text(
+            content: Text(
               '¿Deseas enviar una solicitud de servicio general?',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
+                child: Text(
+                  'Cancelar',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -1038,8 +1165,8 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1051,7 +1178,23 @@ class _HomeClientScreenState extends State<HomeClientScreen>
     );
   }
 
-  void _showContractDialog(Map<String, dynamic> worker, BuildContext context) {
+  void _showContractDialog(
+    Map<String, dynamic> worker,
+    BuildContext context,
+  ) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final currentUser = authProvider.currentUser;
+
+    if (currentUser == null) {
+      _showSnackBar(
+        context,
+        'Error: No se pudo obtener información del usuario',
+        Icons.error,
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder:
@@ -1059,30 +1202,76 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text(
+            title: Text(
               'Contratar Técnico',
-              style: TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             content: Text(
-              '¿Deseas contratar a ${worker['name']} para un trabajo?',
+              '¿Deseas contratar a ${worker['name']} para un trabajo?\n\nEsto creará un chat donde podrás comunicarte directamente con el técnico.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
+                child: Text(
+                  'Cancelar',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(context);
-                  _showSnackBar(
-                    context,
-                    'Has contratado a ${worker['name']}',
-                    Icons.handshake,
-                  );
+
+                  try {
+                    // Crear la conversación de chat
+                    final conversationId = await chatProvider.createConversation(
+                      clientId: currentUser.uid,
+                      workerId:
+                          worker['phone'], // Usamos el teléfono como ID del trabajador
+                      clientName: currentUser.name ?? currentUser.email,
+                      workerName: worker['name'],
+                    );
+
+                    // Enviar mensaje inicial automático
+                    await chatProvider.sendMessage(
+                      conversationId: conversationId,
+                      senderId: currentUser.uid,
+                      receiverId: worker['phone'],
+                      message:
+                          'Hola ${worker['name']}, he contratado tus servicios. ¿Cuándo podrías empezar el trabajo?',
+                    );
+
+                    _showSnackBar(
+                      context,
+                      '¡Has contratado a ${worker['name']}! Se ha creado un chat para comunicarte.',
+                      Icons.handshake,
+                    );
+
+                    // Opcional: Navegar al chat después de contratar
+                    if (context.mounted) {
+                      context.go('/chats');
+                    }
+                  } catch (e) {
+                    print('Error al crear chat: $e');
+                    _showSnackBar(
+                      context,
+                      'Error al crear el chat. Inténtalo de nuevo.',
+                      Icons.error,
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1102,15 +1291,30 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text(
+            title: Text(
               'Cerrar Sesión',
-              style: TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
-            content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
+            content: Text(
+              '¿Estás seguro de que deseas cerrar sesión?',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
+                child: Text(
+                  'Cancelar',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -1132,8 +1336,8 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[600],
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1150,12 +1354,16 @@ class _HomeClientScreenState extends State<HomeClientScreen>
       SnackBar(
         content: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 18),
+            Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onPrimary,
+              size: 18,
+            ),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.black87,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

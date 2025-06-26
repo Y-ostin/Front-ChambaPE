@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,8 +8,18 @@ class AppUser {
   final String uid;
   final String email;
   final String role;
+  final String? name;
+  final String? phone;
+  final String? address;
 
-  AppUser({required this.uid, required this.email, required this.role});
+  AppUser({
+    required this.uid,
+    required this.email,
+    required this.role,
+    this.name,
+    this.phone,
+    this.address,
+  });
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -20,13 +31,27 @@ class AuthProvider extends ChangeNotifier {
   AppUser? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
 
+  StreamSubscription<User?>? _authStateSubscription;
+  bool _disposed = false;
+
   // Constructor que escucha cambios de estado de autenticación
   AuthProvider() {
-    _auth.authStateChanges().listen(_onAuthStateChanged);
+    _authStateSubscription = _auth.authStateChanges().listen(
+      _onAuthStateChanged,
+    );
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _authStateSubscription?.cancel();
+    super.dispose();
   }
 
   // Maneja cambios automáticos en el estado de autenticación
   void _onAuthStateChanged(User? user) async {
+    if (_disposed) return; // Evita notificar si el provider ya fue disposed
+
     if (user == null) {
       _currentUser = null;
     } else {
@@ -35,7 +60,9 @@ class AuthProvider extends ChangeNotifier {
         await _loadUserData(user);
       }
     }
-    notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   // Carga datos del usuario desde Firestore
@@ -49,6 +76,9 @@ class AuthProvider extends ChangeNotifier {
           uid: user.uid,
           email: data['email'] ?? user.email ?? '',
           role: data['role'] ?? 'cliente',
+          name: data['name'],
+          phone: data['phone'],
+          address: data['address'],
         );
       }
     } catch (e) {
@@ -75,6 +105,9 @@ class AuthProvider extends ChangeNotifier {
         uid: cred.user!.uid,
         email: data['email'] ?? '',
         role: data['role'] ?? 'cliente',
+        name: data['name'],
+        phone: data['phone'],
+        address: data['address'],
       );
 
       notifyListeners();
@@ -115,6 +148,9 @@ class AuthProvider extends ChangeNotifier {
         uid: userCred.user!.uid,
         email: userCred.user!.email ?? '',
         role: userDoc.data()?['role'] ?? 'cliente',
+        name: userDoc.data()?['name'],
+        phone: userDoc.data()?['phone'],
+        address: userDoc.data()?['address'],
       );
       notifyListeners();
     } catch (e) {
@@ -152,5 +188,10 @@ class AuthProvider extends ChangeNotifier {
     if (user != null) {
       await _loadUserData(user);
     }
+  }
+
+  // Método para cerrar sesión (alias de logout)
+  Future<void> signOut() async {
+    await logout();
   }
 }

@@ -12,6 +12,7 @@ import '../screens/home_client/home_client_screen.dart';
 import '../screens/home_worker/home_worker_screen.dart';
 import '../screens/profile/worker_profile_screen.dart';
 import '../screens/profile/history/worker_history_screen.dart';
+import '../screens/settings/settings_screen.dart';
 
 class AppRouter {
   static GoRouter router(BuildContext context) {
@@ -41,14 +42,19 @@ class AppRouter {
         GoRoute(
           path: '/chatDetail',
           builder: (context, state) {
-            final nombre = state.extra as String;
-            return ChatDetailScreen(nombre: nombre);
+            final extra = state.extra as Map<String, dynamic>;
+            return ChatDetailScreen(
+              conversationId: extra['conversationId'],
+              otherUserName: extra['otherUserName'],
+              otherUserId: extra['otherUserId'],
+            );
           },
         ),
         GoRoute(
           path: '/workerChats',
           builder: (_, __) => const ChatListWorkerScreen(),
         ),
+        GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       ],
       redirect: (context, state) {
         final auth = context.read<AuthProvider>();

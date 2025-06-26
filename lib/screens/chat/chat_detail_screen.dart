@@ -2,52 +2,127 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../models/chat_message.dart';
+import '../../widgets/chat_message_widget.dart';
+import '../../widgets/chat_input_widget.dart';
+import 'dart:async';
 
 class ChatDetailScreen extends StatefulWidget {
-  final String nombre;
+  final String conversationId;
+  final String otherUserName;
+  final String otherUserId;
 
-  const ChatDetailScreen({super.key, required this.nombre});
+  const ChatDetailScreen({
+    super.key,
+    required this.conversationId,
+    required this.otherUserName,
+    required this.otherUserId,
+  });
 
   @override
   State<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
-  final TextEditingController _controller = TextEditingController();
-  final List<String> mensajes = [
-    'Hola, ¿en qué puedo ayudarte?',
-    'Necesito instalar un enchufe',
-    'Perfecto, ¿cuándo te viene bien?',
-    'Mañana por la tarde estaría bien',
-  ];
   final ScrollController _scrollController = ScrollController();
+  Timer? _typingTimer;
 
-  void enviarMensaje() {
-    final texto = _controller.text.trim();
-    if (texto.isNotEmpty) {
-      setState(() {
-        mensajes.add(texto);
-        _controller.clear();
-      });
-
-      // Scroll hacia abajo automáticamente
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadMessages();
+    _listenToTypingStatus();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
     _scrollController.dispose();
+    _typingTimer?.cancel();
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    chatProvider.clearTypingStatus(widget.conversationId, _getCurrentUserId());
     super.dispose();
+  }
+
+  String _getCurrentUserId() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    return authProvider.currentUser?.uid ?? '';
+  }
+
+  void _loadMessages() {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    chatProvider.loadMessages(widget.conversationId, _getCurrentUserId());
+  }
+
+  void _listenToTypingStatus() {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    chatProvider.listenToTypingStatus(widget.conversationId);
+  }
+
+  void _sendMessage(String message) async {
+    if (message.trim().isEmpty) return;
+
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUser = authProvider.currentUser;
+
+    if (currentUser == null) return;
+
+    try {
+      await chatProvider.sendMessage(
+        conversationId: widget.conversationId,
+        senderId: currentUser.uid,
+        receiverId: widget.otherUserId,
+        message: message.trim(),
+      );
+
+      // Scroll hacia abajo automáticamente
+      _scrollToBottom();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al enviar mensaje: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _onTypingChanged(bool isTyping) {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+
+    // Cancelar timer anterior si existe
+    _typingTimer?.cancel();
+
+    // Actualizar estado de escritura
+    chatProvider.updateTypingStatus(
+      widget.conversationId,
+      _getCurrentUserId(),
+      isTyping,
+    );
+
+    // Si está escribiendo, programar limpieza del estado
+    if (isTyping) {
+      _typingTimer = Timer(const Duration(seconds: 3), () {
+        chatProvider.updateTypingStatus(
+          widget.conversationId,
+          _getCurrentUserId(),
+          false,
+        );
+      });
+    }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -63,7 +138,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () {
-            // Navigate based on user role
             if (isWorker) {
               context.go('/workerChats');
             } else {
@@ -73,21 +147,51 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ),
         title: Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 18,
-              backgroundColor: Colors.black,
-              child: Icon(Icons.person_outline, color: Colors.white, size: 18),
+              backgroundColor: Colors.grey[300],
+              child: Text(
+                widget.otherUserName.substring(0, 1).toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                widget.nombre,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.otherUserName,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 18,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Consumer<ChatProvider>(
+                    builder: (context, chatProvider, child) {
+                      final typingStatus = chatProvider.typingStatus;
+                      final isOtherUserTyping =
+                          typingStatus[widget.otherUserId] == true;
+
+                      return Text(
+                        isOtherUserTyping ? 'Escribiendo...' : 'En línea',
+                        style: TextStyle(
+                          color:
+                              isOtherUserTyping
+                                  ? Colors.blue
+                                  : Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -96,7 +200,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           IconButton(
             icon: const Icon(Icons.more_vert, color: Colors.black),
             onPressed: () {
-              // Aquí puedes agregar opciones adicionales
+              // Opciones adicionales del chat
             },
           ),
         ],
@@ -105,111 +209,69 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                itemCount: mensajes.length,
-                itemBuilder: (_, index) {
-                  final mensaje = mensajes[index];
-                  final isUser = index.isOdd;
+              child: Consumer<ChatProvider>(
+                builder: (context, chatProvider, child) {
+                  final messages = chatProvider.messages;
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Align(
-                      alignment:
-                          isUser ? Alignment.centerRight : Alignment.centerLeft,
-                      child: AnimatedOpacity(
-                        opacity: 1.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  if (chatProvider.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (messages.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 64,
+                            color: Colors.grey[400],
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isUser ? Colors.black : Colors.grey[100],
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            mensaje,
+                          const SizedBox(height: 16),
+                          Text(
+                            'No hay mensajes aún',
                             style: TextStyle(
-                              fontSize: 15,
-                              color: isUser ? Colors.white : Colors.black87,
-                              height: 1.3,
+                              fontSize: 16,
+                              color: Colors.grey[600],
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '¡Inicia la conversación!',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      final isOwnMessage =
+                          message.senderId == _getCurrentUserId();
+
+                      return ChatMessageWidget(
+                        message: message,
+                        isOwnMessage: isOwnMessage,
+                        currentUserId: _getCurrentUserId(),
+                      );
+                    },
                   );
                 },
               ),
             ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Colors.grey[200]!, width: 0.5),
-                ),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: TextField(
-                          controller: _controller,
-                          textInputAction: TextInputAction.send,
-                          maxLines: null,
-                          decoration: const InputDecoration(
-                            hintText: 'Escribe un mensaje...',
-                            hintStyle: TextStyle(color: Colors.grey),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            border: InputBorder.none,
-                          ),
-                          onSubmitted: (_) => enviarMensaje(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: enviarMensaje,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.send_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            ChatInputWidget(
+              onSendMessage: _sendMessage,
+              conversationId: widget.conversationId,
+              currentUserId: _getCurrentUserId(),
+              onTypingChanged: _onTypingChanged,
             ),
           ],
         ),
