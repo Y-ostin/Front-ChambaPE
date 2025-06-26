@@ -8,60 +8,150 @@ class WorkerProfileScreen extends StatefulWidget {
   State<WorkerProfileScreen> createState() => _WorkerProfileScreenState();
 }
 
-class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
+class _WorkerProfileScreenState extends State<WorkerProfileScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
   String name = 'Luis Rodríguez';
   String email = 'luis.rod@example.com';
+  String phone = '+51 987 654 321';
   String specialty = 'Electricista';
+  String experience = '5 años';
   double rating = 4.7;
-  int jobsDone = 12;
+  int jobsDone = 127;
+  int reviewsCount = 89;
+
+  final List<String> certifications = [
+    'Certificación en Instalaciones Eléctricas',
+    'Seguridad Industrial - TECSUP',
+    'Automatización Residencial',
+  ];
+
+  final List<Map<String, dynamic>> recentJobs = [
+    {
+      'cliente': 'Ana García',
+      'servicio': 'Instalación de tomacorrientes',
+      'fecha': '15 Jun 2025',
+      'calificacion': 5.0,
+    },
+    {
+      'cliente': 'Carlos Mendoza',
+      'servicio': 'Reparación de luminarias',
+      'fecha': '12 Jun 2025',
+      'calificacion': 4.8,
+    },
+  ];
+
+  bool isAvailable = true;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Perfil del trabajador'),
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _showEditProfileSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundImage: AssetImage('assets/user_placeholder.png'),
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
-            const SizedBox(height: 16),
-            Text(name, style: Theme.of(context).textTheme.headlineSmall),
-            Text(email, style: TextStyle(color: Colors.grey[700])),
-            const SizedBox(height: 16),
-            Chip(
-              label: Text('Especialidad: $specialty'),
-              backgroundColor: Colors.blue.shade100,
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _statCard(Icons.star, '$rating', 'Rating'),
-                _statCard(Icons.check_circle, '$jobsDone', 'Trabajos'),
+                const Text(
+                  'Editar perfil',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Nombre'),
+                  controller: TextEditingController(text: name),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Especialidad'),
+                  controller: TextEditingController(text: specialty),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Teléfono'),
+                  controller: TextEditingController(text: phone),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Guardar cambios'),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (_) => _buildEditSheet(),
-                );
-              },
-              icon: const Icon(Icons.edit),
-              label: const Text('Editar perfil'),
+          ),
+    );
+  }
 
-            ),ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/workerHistory');
-              },
-              icon: const Icon(Icons.history),
-              label: const Text('Ver historial de trabajos'),
+  Widget _buildStatCard(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
+    return Card(
+      color: color.withOpacity(0.12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 13, color: color.withOpacity(0.8)),
             ),
           ],
         ),
@@ -69,48 +159,460 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  Widget _statCard(IconData icon, String value, String label) {
-    return Column(
+  Widget _buildCertificationsSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Certificaciones',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children:
+                  certifications
+                      .map(
+                        (cert) => Chip(
+                          avatar: const Icon(
+                            Icons.verified_rounded,
+                            size: 18,
+                            color: Colors.green,
+                          ),
+                          label: Text(
+                            cert,
+                            style: TextStyle(color: colorScheme.onSurface),
+                          ),
+                          backgroundColor: colorScheme.surfaceContainer
+                              .withOpacity(0.7),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      )
+                      .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentJobsSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Trabajos recientes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.go('/workerHistory'),
+                  child: const Text('Ver todo'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...recentJobs.map(
+              (job) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  child: Icon(
+                    Icons.handyman_rounded,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                title: Text(
+                  job['servicio'].toString(),
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Cliente: ${job['cliente'].toString()}\nFecha: ${job['fecha'].toString()}',
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                    Text(
+                      job['calificacion'].toString(),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Icon(icon, size: 32, color: Colors.blue),
-        const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        Text(label),
+        FilledButton.icon(
+          onPressed: () => _showEditProfileSheet(context),
+          icon: const Icon(Icons.edit_rounded),
+          label: const Text('Editar'),
+        ),
+        FilledButton.icon(
+          onPressed: () {},
+          icon: const Icon(Icons.share_rounded),
+          label: const Text('Compartir'),
+        ),
+        FilledButton.icon(
+          onPressed: () => context.go('/workerHistory'),
+          icon: const Icon(Icons.history_rounded),
+          label: const Text('Historial'),
+        ),
       ],
     );
   }
 
-  Widget _buildEditSheet() {
-    final nameController = TextEditingController(text: name);
-    final specialtyController = TextEditingController(text: specialty);
+  Widget _buildFeaturedReviews() {
+    final colorScheme = Theme.of(context).colorScheme;
+    // Ejemplo de reseñas destacadas
+    final featuredReviews = [
+      {
+        'cliente': 'Ana García',
+        'comentario': 'Excelente profesional, muy puntual y amable.',
+        'calificacion': 5.0,
+      },
+      {
+        'cliente': 'Carlos Mendoza',
+        'comentario': 'Trabajo impecable y rápido. Lo recomiendo.',
+        'calificacion': 4.8,
+      },
+    ];
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Reseñas destacadas',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...featuredReviews.map(
+              (review) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  child: Icon(Icons.person, color: colorScheme.primary),
+                ),
+                title: Text(
+                  review['cliente'].toString(),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text('"${review['comentario']}"'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                    Text(
+                      review['calificacion'].toString(),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Editar perfil', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre')),
-          TextField(controller: specialtyController, decoration: const InputDecoration(labelText: 'Especialidad')),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                name = nameController.text;
-                specialty = specialtyController.text;
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Guardar'),
-          ),ElevatedButton.icon(
-            onPressed: () {
-              context.go('/workerHistory');
-            },
-            icon: const Icon(Icons.history),
-            label: const Text('Ver historial de trabajos'),
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar.large(
+                  backgroundColor: colorScheme.surface,
+                  surfaceTintColor: colorScheme.surfaceTint,
+                  leading: IconButton.filledTonal(
+                    onPressed: () => context.go('/homeWorker'),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    tooltip: 'Volver al inicio',
+                  ),
+                  title: const Text(
+                    'Mi Perfil',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  actions: [
+                    IconButton.filledTonal(
+                      onPressed: () => _showEditProfileSheet(context),
+                      icon: const Icon(Icons.edit_rounded),
+                      tooltip: 'Editar perfil',
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            colorScheme.primaryContainer.withOpacity(0.3),
+                            colorScheme.secondaryContainer.withOpacity(0.3),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildProfileCard(),
+                      const SizedBox(height: 16),
+                      _buildStatsSection(),
+                      const SizedBox(height: 16),
+                      _buildCertificationsSection(),
+                      const SizedBox(height: 16),
+                      _buildRecentJobsSection(),
+                      const SizedBox(height: 16),
+                      _buildFeaturedReviews(),
+                      const SizedBox(height: 16),
+                      _buildActionButtons(),
+                      const SizedBox(height: 80),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.go('/workerHistory'),
+        icon: const Icon(Icons.history_rounded),
+        label: const Text('Ver Historial'),
+      ),
+    );
+  }
 
-        ],
+  Widget _buildProfileCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card.filled(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            // Avatar y información básica
+            Row(
+              children: [
+                Container(
+                  height: 80,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: colorScheme.outline.withOpacity(0.2),
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 40,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          specialty,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Text(
+                            'Disponible',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Switch(
+                            value: isAvailable,
+                            activeColor: colorScheme.primary,
+                            onChanged:
+                                (val) => setState(() => isAvailable = val),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Información de contacto
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainer.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _buildContactRow(Icons.email_rounded, email),
+                  const SizedBox(height: 12),
+                  _buildContactRow(Icons.phone_rounded, phone),
+                  const SizedBox(height: 12),
+                  _buildContactRow(
+                    Icons.work_history_rounded,
+                    '$experience de experiencia',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactRow(IconData icon, String text) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: colorScheme.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              color: colorScheme.onSurface.withOpacity(0.8),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatsSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Estadísticas',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.star_rounded,
+                    rating.toString(),
+                    'Calificación',
+                    colorScheme.tertiary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.check_circle_rounded,
+                    jobsDone.toString(),
+                    'Trabajos',
+                    colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.rate_review_rounded,
+                    reviewsCount.toString(),
+                    'Reseñas',
+                    colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

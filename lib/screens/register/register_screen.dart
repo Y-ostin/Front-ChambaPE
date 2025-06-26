@@ -14,7 +14,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+  final experienceController = TextEditingController();
+  final descriptionController = TextEditingController();
   String selectedRole = 'cliente';
+  String selectedSpecialty = 'Electricista';
   bool isLoading = false;
 
   Future<void> _registerUser() async {
@@ -26,15 +30,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
             password: passwordController.text.trim(),
           );
 
+      final userData = {
+        'email': emailController.text.trim(),
+        'name': nameController.text.trim(),
+        'role': selectedRole,
+        'uid': credential.user!.uid,
+      };
+      if (selectedRole == 'trabajador') {
+        userData.addAll({
+          'specialty': selectedSpecialty,
+          'phone': phoneController.text.trim(),
+          'experience': experienceController.text.trim(),
+          'description': descriptionController.text.trim(),
+        });
+      }
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(credential.user!.uid)
-          .set({
-            'email': emailController.text.trim(),
-            'name': nameController.text.trim(),
-            'role': selectedRole,
-            'uid': credential.user!.uid,
-          });
+          .set(userData);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Usuario registrado correctamente')),
@@ -133,6 +147,84 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ],
               ),
+              if (selectedRole == 'trabajador') ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedSpecialty,
+                  onChanged: (value) {
+                    if (value != null)
+                      setState(() => selectedSpecialty = value);
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: border,
+                    enabledBorder: border,
+                    focusedBorder: border,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Electricista',
+                      child: Text('Electricista'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Gasfitero',
+                      child: Text('Gasfitero'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Carpintero',
+                      child: Text('Carpintero'),
+                    ),
+                    DropdownMenuItem(value: 'Pintor', child: Text('Pintor')),
+                    DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: 'Teléfono',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: border,
+                    enabledBorder: border,
+                    focusedBorder: border,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: experienceController,
+                  decoration: InputDecoration(
+                    hintText: 'Años de experiencia',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: border,
+                    enabledBorder: border,
+                    focusedBorder: border,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Descripción profesional (opcional)',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: border,
+                    enabledBorder: border,
+                    focusedBorder: border,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               isLoading
                   ? const CircularProgressIndicator()

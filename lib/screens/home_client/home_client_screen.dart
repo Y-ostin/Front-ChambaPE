@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
@@ -31,6 +32,9 @@ class _HomeClientScreenState extends State<HomeClientScreen>
     'Carpintero',
     'Técnico en computadoras',
   ];
+
+  List<Map<String, dynamic>> firestoreWorkers = [];
+  bool isLoadingWorkers = false;
 
   final List<Map<String, dynamic>> workers = const [
     {
@@ -115,37 +119,130 @@ class _HomeClientScreenState extends State<HomeClientScreen>
         searchQuery = _searchController.text.toLowerCase();
       });
     });
+
+    _loadFirestoreWorkers();
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _searchController.dispose();
-    super.dispose();
+  Future<void> _loadFirestoreWorkers() async {
+    print('🔄 Iniciando carga de trabajadores desde Firestore...');
+    setState(() => isLoadingWorkers = true);
+
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'trabajador')
+              .get();
+
+      print('📊 Documentos encontrados: ${snapshot.docs.length}');
+
+      if (snapshot.docs.isEmpty) {
+        print('⚠️ No se encontraron trabajadores en Firestore');
+        firestoreWorkers = [];
+        return;
+      }
+
+      firestoreWorkers =
+          snapshot.docs.map((doc) {
+            final data = doc.data();
+            print('📄 Procesando documento: ${doc.id}');
+            print('📋 Datos del documento: $data');
+
+            // Mapeo corregido basado en los campos reales de Firebase
+            final worker = {
+              'uid': doc.id, // ✅ Usar doc.id en lugar de data['uid']
+              'name': data['name'] ?? 'Sin nombre',
+              'specialty': data['specialty'] ?? 'Sin especialidad',
+              'rating':
+                  (data['rating'] is num)
+                      ? (data['rating'] as num).toDouble()
+                      : 4.5,
+              'phone': data['phone'] ?? 'Sin teléfono',
+              'available': data['available'] ?? true,
+              'experience': data['experience'] ?? 'Sin experiencia',
+              'completedJobs':
+                  (data['completedJobs'] is num)
+                      ? data['completedJobs'] as int
+                      : 0,
+              'priceRange': data['priceRange'] ?? 'Consultar precio',
+              'avatar':
+                  (data['name'] != null && data['name'].toString().isNotEmpty)
+                      ? data['name'].toString().substring(0, 1).toUpperCase()
+                      : 'T',
+              'description':
+                  data['description'] ?? 'Sin descripción disponible',
+            };
+
+            print(
+              '✅ Trabajador procesado: ${worker['name']} - ${worker['specialty']}',
+            );
+            return worker;
+          }).toList();
+
+      print(
+        '🎉 Total trabajadores cargados desde Firestore: ${firestoreWorkers.length}',
+      );
+
+      // Debug: Imprimir lista completa
+      for (int i = 0; i < firestoreWorkers.length; i++) {
+        final worker = firestoreWorkers[i];
+        print(
+          '👷 [$i] ${worker['name']} - ${worker['specialty']} - Disponible: ${worker['available']}',
+        );
+      }
+    } catch (e) {
+      print('❌ Error al cargar trabajadores desde Firestore: $e');
+      firestoreWorkers = [];
+    } finally {
+      setState(() => isLoadingWorkers = false);
+      print(
+        '🔄 Carga completada. Total en memoria: ${firestoreWorkers.length}',
+      );
+    }
   }
 
+  // Getter mejorado con depuración
   List<Map<String, dynamic>> get filteredWorkers {
-    var filtered = workers;
+    print('🔍 Filtrando trabajadores...');
+    print(
+      '📊 Firestore: ${firestoreWorkers.length}, Hardcoded: ${workers.length}',
+    );
+
+    var combined = [...firestoreWorkers, ...workers];
+    print('📊 Total combinados antes de filtros: ${combined.length}');
 
     // Filtrar por categoría
     if (selectedCategory != 'Todos') {
-      filtered =
-          filtered
+      combined =
+          combined
               .where((worker) => worker['specialty'] == selectedCategory)
               .toList();
+      print(
+        '📊 Después de filtro por categoría "$selectedCategory": ${combined.length}',
+      );
     }
 
     // Filtrar por búsqueda
     if (searchQuery.isNotEmpty) {
-      filtered =
-          filtered.where((worker) {
-            return worker['name'].toLowerCase().contains(searchQuery) ||
-                worker['specialty'].toLowerCase().contains(searchQuery) ||
-                worker['description'].toLowerCase().contains(searchQuery);
+      combined =
+          combined.where((worker) {
+            final name = (worker['name'] ?? '').toString().toLowerCase();
+            final specialty =
+                (worker['specialty'] ?? '').toString().toLowerCase();
+            final description =
+                (worker['description'] ?? '').toString().toLowerCase();
+
+            return name.contains(searchQuery) ||
+                specialty.contains(searchQuery) ||
+                description.contains(searchQuery);
           }).toList();
+      print(
+        '📊 Después de filtro por búsqueda "$searchQuery": ${combined.length}',
+      );
     }
 
-    return filtered;
+    print('✅ Trabajadores finales a mostrar: ${combined.length}');
+    return combined;
   }
 
   Color _getCategoryColor(String category) {
@@ -203,7 +300,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                       const SizedBox(height: 24),
 
                       // Sección de técnicos destacados
-                      FeaturedWorkersSection(workers: workers),
+                      FeaturedWorkersSection(workers: filteredWorkers),
 
                       const SizedBox(height: 24),
 
@@ -513,6 +610,40 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                 ),
               ),
               const Spacer(),
+              // Indicador de carga de Firestore
+              if (isLoadingWorkers)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Cargando...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (selectedCategory != 'Todos' || searchQuery.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -542,9 +673,16 @@ class _HomeClientScreenState extends State<HomeClientScreen>
             ],
           ),
           const SizedBox(height: 16),
-
+          // Indicador de carga principal
+          if (isLoadingWorkers)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: CircularProgressIndicator(color: Colors.orange),
+              ),
+            )
           // Mostrar mensaje si no hay resultados
-          if (workers.isEmpty)
+          else if (workers.isEmpty)
             _buildNoResultsMessage()
           else
             ListView.separated(
@@ -1233,19 +1371,19 @@ class _HomeClientScreenState extends State<HomeClientScreen>
 
                   try {
                     // Crear la conversación de chat
-                    final conversationId = await chatProvider.createConversation(
-                      clientId: currentUser.uid,
-                      workerId:
-                          worker['phone'], // Usamos el teléfono como ID del trabajador
-                      clientName: currentUser.name ?? currentUser.email,
-                      workerName: worker['name'],
-                    );
+                    final conversationId = await chatProvider
+                        .createConversation(
+                          clientId: currentUser.uid,
+                          workerId: worker['uid'],
+                          clientName: currentUser.name ?? currentUser.email,
+                          workerName: worker['name'],
+                        );
 
                     // Enviar mensaje inicial automático
                     await chatProvider.sendMessage(
                       conversationId: conversationId,
                       senderId: currentUser.uid,
-                      receiverId: worker['phone'],
+                      receiverId: worker['uid'],
                       message:
                           'Hola ${worker['name']}, he contratado tus servicios. ¿Cuándo podrías empezar el trabajo?',
                     );
