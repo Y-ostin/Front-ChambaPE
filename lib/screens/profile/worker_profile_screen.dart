@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/worker_provider.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -13,38 +16,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-
-  String name = 'Luis Rodríguez';
-  String email = 'luis.rod@example.com';
-  String phone = '+51 987 654 321';
-  String specialty = 'Electricista';
-  String experience = '5 años';
-  double rating = 4.7;
-  int jobsDone = 127;
-  int reviewsCount = 89;
-
-  final List<String> certifications = [
-    'Certificación en Instalaciones Eléctricas',
-    'Seguridad Industrial - TECSUP',
-    'Automatización Residencial',
-  ];
-
-  final List<Map<String, dynamic>> recentJobs = [
-    {
-      'cliente': 'Ana García',
-      'servicio': 'Instalación de tomacorrientes',
-      'fecha': '15 Jun 2025',
-      'calificacion': 5.0,
-    },
-    {
-      'cliente': 'Carlos Mendoza',
-      'servicio': 'Reparación de luminarias',
-      'fecha': '12 Jun 2025',
-      'calificacion': 4.8,
-    },
-  ];
-
-  bool isAvailable = true;
 
   @override
   void initState() {
@@ -63,6 +34,15 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
     );
     _animationController.forward();
+
+    // Cargar datos del trabajador
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      final workerProvider = context.read<WorkerProvider>();
+      if (authProvider.currentUser != null) {
+        workerProvider.loadWorkerData(authProvider.currentUser!.uid);
+      }
+    });
   }
 
   @override
@@ -70,6 +50,43 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
     _animationController.dispose();
     super.dispose();
   }
+
+  // Datos dinámicos basados en el usuario autenticado
+  String get name =>
+      context.read<AuthProvider>().currentUser?.name ?? 'Usuario';
+  String get email =>
+      context.read<AuthProvider>().currentUser?.email ?? 'usuario@example.com';
+  String get phone =>
+      context.read<AuthProvider>().currentUser?.phone ?? '+51 987 654 321';
+
+  // Datos específicos del trabajador
+  String get specialty =>
+      context.read<WorkerProvider>().workerData?.specialty ?? 'Electricista';
+  String get experience =>
+      context.read<WorkerProvider>().workerData?.experience ?? '5 años';
+  double get rating => context.read<WorkerProvider>().workerData?.rating ?? 4.7;
+  int get jobsDone =>
+      context.read<WorkerProvider>().workerData?.jobsDone ?? 127;
+  int get reviewsCount =>
+      context.read<WorkerProvider>().workerData?.reviewsCount ?? 89;
+  bool get isAvailable =>
+      context.read<WorkerProvider>().workerData?.isAvailable ?? true;
+
+  List<String> get certifications =>
+      context.read<WorkerProvider>().workerData?.certifications ??
+      [
+        'Certificación en Instalaciones Eléctricas',
+        'Seguridad Industrial - TECSUP',
+        'Automatización Residencial',
+      ];
+
+  // Trabajos recientes dinámicos
+  List<Map<String, dynamic>> get recentJobs =>
+      context.read<WorkerProvider>().recentJobs;
+
+  // Reseñas dinámicas
+  List<Map<String, dynamic>> get reviews =>
+      context.read<WorkerProvider>().reviews;
 
   void _showEditProfileSheet(BuildContext context) {
     showModalBottomSheet(
@@ -293,19 +310,8 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
 
   Widget _buildFeaturedReviews() {
     final colorScheme = Theme.of(context).colorScheme;
-    // Ejemplo de reseñas destacadas
-    final featuredReviews = [
-      {
-        'cliente': 'Ana García',
-        'comentario': 'Excelente profesional, muy puntual y amable.',
-        'calificacion': 5.0,
-      },
-      {
-        'cliente': 'Carlos Mendoza',
-        'comentario': 'Trabajo impecable y rápido. Lo recomiendo.',
-        'calificacion': 4.8,
-      },
-    ];
+    // Usar reseñas dinámicas del WorkerProvider
+    final featuredReviews = reviews;
     return Card.outlined(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -361,63 +367,67 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
-            child: CustomScrollView(
-              slivers: [
-                SliverAppBar.large(
-                  backgroundColor: colorScheme.surface,
-                  surfaceTintColor: colorScheme.surfaceTint,
-                  leading: IconButton.filledTonal(
-                    onPressed: () => context.go('/homeWorker'),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    tooltip: 'Volver al inicio',
-                  ),
-                  title: const Text(
-                    'Mi Perfil',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  actions: [
-                    IconButton.filledTonal(
-                      onPressed: () => _showEditProfileSheet(context),
-                      icon: const Icon(Icons.edit_rounded),
-                      tooltip: 'Editar perfil',
-                    ),
-                    const SizedBox(width: 16),
-                  ],
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            colorScheme.primaryContainer.withOpacity(0.3),
-                            colorScheme.secondaryContainer.withOpacity(0.3),
-                          ],
+            child: Consumer<WorkerProvider>(
+              builder: (context, workerProvider, child) {
+                return CustomScrollView(
+                  slivers: [
+                    SliverAppBar.large(
+                      backgroundColor: colorScheme.surface,
+                      surfaceTintColor: colorScheme.surfaceTint,
+                      leading: IconButton.filledTonal(
+                        onPressed: () => context.go('/homeWorker'),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        tooltip: 'Volver al inicio',
+                      ),
+                      title: const Text(
+                        'Mi Perfil',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      actions: [
+                        IconButton.filledTonal(
+                          onPressed: () => _showEditProfileSheet(context),
+                          icon: const Icon(Icons.edit_rounded),
+                          tooltip: 'Editar perfil',
+                        ),
+                        const SizedBox(width: 16),
+                      ],
+                      flexibleSpace: FlexibleSpaceBar(
+                        background: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.primaryContainer.withOpacity(0.3),
+                                colorScheme.secondaryContainer.withOpacity(0.3),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _buildProfileCard(),
-                      const SizedBox(height: 16),
-                      _buildStatsSection(),
-                      const SizedBox(height: 16),
-                      _buildCertificationsSection(),
-                      const SizedBox(height: 16),
-                      _buildRecentJobsSection(),
-                      const SizedBox(height: 16),
-                      _buildFeaturedReviews(),
-                      const SizedBox(height: 16),
-                      _buildActionButtons(),
-                      const SizedBox(height: 80),
-                    ]),
-                  ),
-                ),
-              ],
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _buildProfileCard(),
+                          const SizedBox(height: 16),
+                          _buildStatsSection(),
+                          const SizedBox(height: 16),
+                          _buildCertificationsSection(),
+                          const SizedBox(height: 16),
+                          _buildRecentJobsSection(),
+                          const SizedBox(height: 16),
+                          _buildFeaturedReviews(),
+                          const SizedBox(height: 16),
+                          _buildActionButtons(),
+                          const SizedBox(height: 80),
+                        ]),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -505,8 +515,30 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
                           Switch(
                             value: isAvailable,
                             activeColor: colorScheme.primary,
-                            onChanged:
-                                (val) => setState(() => isAvailable = val),
+                            onChanged: (val) async {
+                              try {
+                                final authProvider =
+                                    context.read<AuthProvider>();
+                                final workerProvider =
+                                    context.read<WorkerProvider>();
+                                if (authProvider.currentUser != null) {
+                                  await workerProvider.updateAvailability(
+                                    authProvider.currentUser!.uid,
+                                    val,
+                                  );
+                                }
+                              } catch (e) {
+                                // Mostrar error si algo falla
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Error al actualizar disponibilidad: $e',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
                           ),
                         ],
                       ),

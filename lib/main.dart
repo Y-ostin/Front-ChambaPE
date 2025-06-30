@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/language_provider.dart';
+import 'providers/worker_provider.dart';
 import 'themes/app_theme.dart';
 import 'firebase_options.dart'; // generado por flutterfire configure
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -23,6 +24,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => ChatProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => LanguageProvider()),
+        ChangeNotifierProvider(create: (context) => WorkerProvider()),
       ],
       child: const ManosExpertasApp(),
     ),

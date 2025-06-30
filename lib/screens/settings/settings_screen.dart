@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../utils/sample_data.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -339,6 +340,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ).colorScheme.onSurface.withOpacity(0.5),
                 ),
                 onTap: () => _showAboutDialog(languageProvider),
+              ),
+
+              const Divider(),
+
+              _buildSettingTile(
+                icon: Icons.data_usage,
+                title: 'Poblar datos de ejemplo',
+                subtitle: 'Agregar datos de prueba a Firestore',
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.5),
+                ),
+                onTap: () => _populateSampleData(),
               ),
             ],
           ),
@@ -853,5 +870,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
     );
+  }
+
+  void _populateSampleData() async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Poblar datos de ejemplo
+      await SampleData.populateSampleData();
+
+      // Cerrar diálogo de carga
+      Navigator.pop(context);
+
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Datos de ejemplo agregados exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      // Cerrar diálogo de carga
+      Navigator.pop(context);
+
+      // Mostrar mensaje de error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al agregar datos: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

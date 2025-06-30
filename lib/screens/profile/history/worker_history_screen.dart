@@ -220,9 +220,9 @@ class _WorkerHistoryScreenState extends State<WorkerHistoryScreen>
       child: Row(
         children: [
           IconButton.filledTonal(
-            onPressed: () => context.go('/workerHome'),
+            onPressed: () => context.go('/workerProfile'),
             icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: 'Volver al inicio',
+            tooltip: 'Volver al perfil',
             style: IconButton.styleFrom(
               backgroundColor: colorScheme.primaryContainer,
               foregroundColor: colorScheme.onPrimaryContainer,

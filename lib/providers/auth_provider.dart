@@ -80,9 +80,36 @@ class AuthProvider extends ChangeNotifier {
           phone: data['phone'],
           address: data['address'],
         );
+
+        // Si es trabajador, cargar información adicional
+        if (data['role'] == 'trabajador') {
+          await _loadWorkerData(user.uid);
+        }
       }
     } catch (e) {
       print('Error loading user data: $e');
+    }
+  }
+
+  // Carga información específica del trabajador
+  Future<void> _loadWorkerData(String uid) async {
+    try {
+      final workerDoc = await _firestore.collection('workers').doc(uid).get();
+
+      if (workerDoc.exists) {
+        final workerData = workerDoc.data()!;
+        // Actualizar el usuario actual con información del trabajador
+        _currentUser = AppUser(
+          uid: _currentUser!.uid,
+          email: _currentUser!.email,
+          role: _currentUser!.role,
+          name: _currentUser!.name,
+          phone: workerData['phone'] ?? _currentUser!.phone,
+          address: workerData['address'] ?? _currentUser!.address,
+        );
+      }
+    } catch (e) {
+      print('Error loading worker data: $e');
     }
   }
 
