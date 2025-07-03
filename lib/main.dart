@@ -26,13 +26,13 @@ void main() async {
         ChangeNotifierProvider(create: (context) => LanguageProvider()),
         ChangeNotifierProvider(create: (context) => WorkerProvider()),
       ],
-      child: const ManosExpertasApp(),
+      child: const ChambaPEApp(),
     ),
   );
 }
 
-class ManosExpertasApp extends StatelessWidget {
-  const ManosExpertasApp({super.key});
+class ChambaPEApp extends StatelessWidget {
+  const ChambaPEApp({super.key});
 
   @override
   Widget build(BuildContext context) {

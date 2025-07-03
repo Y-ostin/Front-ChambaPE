@@ -221,4 +221,150 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     await logout();
   }
+
+  // Método para eliminar cuenta permanentemente
+  Future<void> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('No hay usuario autenticado');
+      }
+
+      // Eliminar datos del usuario de Firestore
+      await _deleteUserData(user.uid);
+
+      // Eliminar la cuenta de Firebase Auth
+      await user.delete();
+
+      // Limpiar el usuario actual
+      _currentUser = null;
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting account: $e');
+      rethrow;
+    }
+  }
+
+  // Método para eliminar cuenta con reautenticación
+  Future<void> deleteAccountWithReauth(String password) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('No hay usuario autenticado');
+      }
+
+      // Reautenticar al usuario antes de eliminar
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+
+      // Eliminar datos del usuario de Firestore
+      await _deleteUserData(user.uid);
+
+      // Eliminar la cuenta de Firebase Auth
+      await user.delete();
+
+      // Limpiar el usuario actual
+      _currentUser = null;
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting account with reauth: $e');
+      rethrow;
+    }
+  }
+
+  // Eliminar todos los datos del usuario de Firestore
+  Future<void> _deleteUserData(String uid) async {
+    try {
+      // Obtener el rol del usuario antes de eliminarlo
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      final userRole = userDoc.data()?['role'] ?? 'cliente';
+
+      // Eliminar datos específicos según el rol
+      if (userRole == 'trabajador') {
+        // Eliminar datos del trabajador
+        await _firestore.collection('workers').doc(uid).delete();
+
+        // Eliminar conversaciones donde participa el trabajador
+        await _deleteUserConversations(uid);
+      } else {
+        // Eliminar conversaciones donde participa el cliente
+        await _deleteUserConversations(uid);
+      }
+
+      // Eliminar el documento principal del usuario
+      await _firestore.collection('users').doc(uid).delete();
+
+      print('User data deleted successfully');
+    } catch (e) {
+      print('Error deleting user data: $e');
+      rethrow;
+    }
+  }
+
+  // Eliminar conversaciones del usuario
+  Future<void> _deleteUserConversations(String uid) async {
+    try {
+      // Buscar conversaciones donde el usuario participa
+      final conversationsQuery =
+          await _firestore
+              .collection('conversations')
+              .where('clientId', isEqualTo: uid)
+              .get();
+
+      final workerConversationsQuery =
+          await _firestore
+              .collection('conversations')
+              .where('workerId', isEqualTo: uid)
+              .get();
+
+      // Eliminar todas las conversaciones encontradas
+      final batch = _firestore.batch();
+
+      // Eliminar conversaciones como cliente
+      for (final doc in conversationsQuery.docs) {
+        // Eliminar mensajes de la conversación
+        final messagesQuery = await doc.reference.collection('messages').get();
+        for (final messageDoc in messagesQuery.docs) {
+          batch.delete(messageDoc.reference);
+        }
+
+        // Eliminar estado de escritura
+        final typingQuery = await doc.reference.collection('typing').get();
+        for (final typingDoc in typingQuery.docs) {
+          batch.delete(typingDoc.reference);
+        }
+
+        // Eliminar la conversación
+        batch.delete(doc.reference);
+      }
+
+      // Eliminar conversaciones como trabajador
+      for (final doc in workerConversationsQuery.docs) {
+        // Eliminar mensajes de la conversación
+        final messagesQuery = await doc.reference.collection('messages').get();
+        for (final messageDoc in messagesQuery.docs) {
+          batch.delete(messageDoc.reference);
+        }
+
+        // Eliminar estado de escritura
+        final typingQuery = await doc.reference.collection('typing').get();
+        for (final typingDoc in typingQuery.docs) {
+          batch.delete(typingDoc.reference);
+        }
+
+        // Eliminar la conversación
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      print('User conversations deleted successfully');
+    } catch (e) {
+      print('Error deleting user conversations: $e');
+      rethrow;
+    }
+  }
 }

@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../utils/sample_data.dart';
+import '../../widgets/delete_account_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -742,7 +743,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             title: Text(
-              'Acerca de Manos Expertas',
+              'Acerca de ChambaPE',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             content: Column(
@@ -752,7 +753,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text('${languageProvider.getTranslatedText('version')}: 1.0.0'),
                 const SizedBox(height: 8),
                 const Text(
-                  'Conectamos clientes con técnicos expertos para resolver sus necesidades de servicios técnicos.',
+                  'Conectamos clientes con técnicos expertos para resolver sus necesidades de servicios técnicos en Perú.',
                 ),
               ],
             ),
@@ -818,55 +819,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+          (context) => DeleteAccountDialog(
+            title: languageProvider.getTranslatedText('eliminar_cuenta'),
+            message: languageProvider.getTranslatedText(
+              'confirmar_eliminacion',
             ),
-            title: Text(
-              languageProvider.getTranslatedText('eliminar_cuenta'),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  languageProvider.getTranslatedText('confirmar_eliminacion'),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  languageProvider.getTranslatedText(
-                    'esta_accion_no_se_puede_desacer',
-                  ),
-                  style: TextStyle(color: Colors.red[600], fontSize: 12),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(languageProvider.getTranslatedText('cancelar')),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // Aquí implementarías la lógica para eliminar la cuenta
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Funcionalidad en desarrollo'),
-                      backgroundColor: Colors.orange[600],
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[600],
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(languageProvider.getTranslatedText('eliminar')),
-              ),
+            itemsToDelete: [
+              'Tu perfil de usuario',
+              'Todas tus conversaciones',
+              'Tu historial de actividades',
+              'Tus datos personales',
             ],
           ),
     );

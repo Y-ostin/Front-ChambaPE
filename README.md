@@ -1,6 +1,6 @@
-# manos_expertas
+# ChambaPE
 
-A new Flutter project.
+ChambaPE - Encuentra trabajadores expertos en Perú.
 
 ## Getting Started
 

@@ -357,7 +357,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Manos Expertas',
+                      'ChambaPE',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/worker_provider.dart';
+import '../../widgets/delete_account_dialog.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -286,23 +287,37 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
 
   Widget _buildActionButtons() {
     final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Column(
       children: [
-        FilledButton.icon(
-          onPressed: () => _showEditProfileSheet(context),
-          icon: const Icon(Icons.edit_rounded),
-          label: const Text('Editar'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            FilledButton.icon(
+              onPressed: () => _showEditProfileSheet(context),
+              icon: const Icon(Icons.edit_rounded),
+              label: const Text('Editar'),
+            ),
+            FilledButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.share_rounded),
+              label: const Text('Compartir'),
+            ),
+            FilledButton.icon(
+              onPressed: () => context.go('/workerHistory'),
+              icon: const Icon(Icons.history_rounded),
+              label: const Text('Historial'),
+            ),
+          ],
         ),
-        FilledButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.share_rounded),
-          label: const Text('Compartir'),
-        ),
-        FilledButton.icon(
-          onPressed: () => context.go('/workerHistory'),
-          icon: const Icon(Icons.history_rounded),
-          label: const Text('Historial'),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: () => _showDeleteAccountDialog(context),
+          icon: const Icon(Icons.delete_forever_rounded),
+          label: const Text('Eliminar Cuenta'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colorScheme.error,
+            side: BorderSide(color: colorScheme.error),
+          ),
         ),
       ],
     );
@@ -646,6 +661,23 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen>
           ],
         ),
       ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => DeleteAccountDialog(
+            title: 'Eliminar Cuenta',
+            message: '¿Estás seguro de que quieres eliminar tu cuenta?',
+            itemsToDelete: [
+              'Tu perfil de trabajador',
+              'Todas tus conversaciones',
+              'Tu historial de trabajos',
+              'Tus calificaciones y reseñas',
+            ],
+          ),
     );
   }
 }
