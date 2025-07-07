@@ -1,0 +1,808 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:convert';
+import '../../providers/auth_provider.dart';
+import '../../providers/nestjs_provider.dart';
+import '../../widgets/document_upload_widget.dart';
+import '../../services/validate_service.dart';
+
+class RegisterScreenNew extends StatefulWidget {
+  const RegisterScreenNew({super.key});
+
+  @override
+  State<RegisterScreenNew> createState() => _RegisterScreenNewState();
+}
+
+class _RegisterScreenNewState extends State<RegisterScreenNew> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _dniController = TextEditingController();
+  
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _isWorker = false;
+  bool _isConnected = false;
+  
+  // Documentos para trabajadores
+  File? _dniFrontal;
+  File? _dniPosterior;
+  File? _certificatePdf;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnection();
+  }
+
+  Future<void> _checkConnection() async {
+    final nestJSProvider = context.read<NestJSProvider>();
+    final connected = await nestJSProvider.testConnection();
+    if (mounted) {
+      setState(() {
+        _isConnected = connected;
+      });
+    }
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final nestJSProvider = context.read<NestJSProvider>();
+
+      // Si es trabajador, validar documentos ANTES del registro
+      if (_isWorker) {
+        print('🔍 Iniciando validación de documentos para trabajador...');
+        
+        // Verificar que todos los archivos estén subidos
+        if (_dniFrontal == null || _dniPosterior == null || _certificatePdf == null) {
+          print('❌ Faltan archivos para validar');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Debe subir todos los documentos requeridos'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        // Validar documentos con el backend
+        final result = await ValidateService.validateCertUnico(
+          dni: _dniController.text.trim(),
+          dniFrontal: _dniFrontal!,
+          dniPosterior: _dniPosterior!,
+          certUnico: _certificatePdf!,
+        );
+        
+        print('📡 Resultado de validación: $result');
+        
+        if (result == null) {
+          // Error de conexión o respuesta nula
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('ERROR INTERNO: No se pudo conectar con el servidor'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        
+        print('🔍 Resultado completo de validación: $result');
+        print('🔍 Tipo de valido: ${result['valido'].runtimeType}');
+        print('🔍 Valor de valido: ${result['valido']}');
+        
+        final valido = result['valido'] ?? false;
+        final antecedentes = result['antecedentes'] ?? [];
+        final mensaje = result['mensaje'] ?? 'Sin mensaje';
+        
+        print('🔍 Valido procesado: $valido (tipo: ${valido.runtimeType})');
+        print('🔍 Antecedentes: $antecedentes');
+        print('🔍 Mensaje: $mensaje');
+        
+        if (valido == false && antecedentes.isNotEmpty) {
+          // Tiene antecedentes
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('TIENE ANTECEDENTES, NO PUEDE USAR LA APP'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          print('❌ Antecedentes detectados, registro cancelado');
+          return;
+        } else if (valido == false) {
+          // Datos no coinciden u otro error
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('LOS DATOS NO COINCIDEN: $mensaje'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          print('❌ Datos no coinciden: $mensaje');
+          return;
+        } else if (valido == true && antecedentes.isEmpty) {
+          // Validación exitosa, continuar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Documentos validados correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          print('✅ Validación exitosa, continuando con registro...');
+        } else {
+          // Caso inesperado
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error inesperado: $mensaje'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          print('❌ Error inesperado: $mensaje');
+          return;
+        }
+      }
+
+      // Registro básico de usuario en el backend
+      print('🚀 Registrando usuario en el backend...');
+      final userResponse = await nestJSProvider.registerUser({
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+      });
+
+      // Si es trabajador, registrar como trabajador inmediatamente
+      if (_isWorker) {
+        print('🔧 Registrando como trabajador después del registro básico...');
+        try {
+          await _registerWorker(nestJSProvider);
+          print('✅ Trabajador registrado exitosamente');
+        } catch (e) {
+          print('❌ Error al registrar trabajador: $e');
+          // No bloquear el flujo, solo mostrar warning
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Usuario registrado pero error al completar perfil de trabajador: $e'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      }
+
+      // Mostrar éxito del backend ANTES de Firebase
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('REVISA TU CORREO'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Registrar en Firebase (opcional, pero no debe bloquear el éxito del backend)
+      final authProvider = context.read<AuthProvider>();
+      try {
+        await authProvider.register(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+        );
+      } catch (e) {
+        // Si falla Firebase, solo muestra un warning, pero no un error fatal
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Usuario creado en ChambaPE, pero ya existe en Firebase.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+
+      // Navegar a la pantalla de verificación de email
+      if (mounted) {
+        context.go('/email-verification', extra: {
+          'email': _emailController.text.trim(),
+          'isWorker': _isWorker,
+        });
+      }
+    } catch (e) {
+      print('❌ Error en registro: $e');
+      String errorMsg = 'ERROR INTERNO';
+      if (e.toString().contains('emailAlreadyExists')) {
+        errorMsg = 'CORREO EXISTENTE';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _registerWorker(NestJSProvider nestJSProvider) async {
+    print('🚀 Iniciando registro público de trabajador...');
+    
+    // Validar que todos los archivos estén presentes
+    if (_dniFrontal == null || _dniPosterior == null || _certificatePdf == null) {
+      throw Exception('Todos los documentos son requeridos: DNI frontal, DNI posterior y certificado PDF');
+    }
+
+    try {
+      // Usar el nuevo método de registro público que incluye la subida de archivos
+      final result = await nestJSProvider.registerWorkerPublic(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        dniNumber: _dniController.text.trim(),
+        dniFrontal: _dniFrontal!,
+        dniPosterior: _dniPosterior!,
+        certificatePdf: _certificatePdf!,
+        description: 'Trabajador registrado en ChambaPE',
+        radiusKm: 15,
+      );
+      
+      print('📡 Resultado registro público trabajador: $result');
+      print('✅ Trabajador registrado exitosamente');
+      
+    } catch (e) {
+      print('❌ Error en registro público de trabajador: $e');
+      throw Exception('Error al registrar trabajador: $e');
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source, Function(File) onImagePicked) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+    
+    if (pickedFile != null) {
+      onImagePicked(File(pickedFile.path));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      appBar: AppBar(
+        title: const Text('Registro'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                _buildHeader(theme),
+                const SizedBox(height: 32),
+
+                // Indicador de conexión
+                _buildConnectionStatus(theme),
+                const SizedBox(height: 24),
+
+                // Tipo de usuario
+                _buildUserTypeSelector(theme),
+                const SizedBox(height: 24),
+
+                // Formulario básico
+                _buildBasicForm(theme),
+                const SizedBox(height: 24),
+
+                // Formulario de trabajador (condicional)
+                if (_isWorker) ...[
+                  _buildWorkerForm(theme),
+                  const SizedBox(height: 24),
+                ],
+
+                // Botón de registro
+                _buildRegisterButton(theme),
+                const SizedBox(height: 16),
+
+                // Enlace a login
+                _buildLoginLink(theme),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    return Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Icon(
+            Icons.person_add_rounded,
+            size: 40,
+            color: theme.colorScheme.onPrimary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Crear cuenta',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Únete a ChambaPE',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConnectionStatus(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _isConnected 
+          ? theme.colorScheme.primaryContainer 
+          : theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _isConnected ? Icons.wifi : Icons.wifi_off,
+            color: _isConnected 
+              ? theme.colorScheme.onPrimaryContainer 
+              : theme.colorScheme.onErrorContainer,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _isConnected ? 'Conectado al servidor' : 'Sin conexión al servidor',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: _isConnected 
+                ? theme.colorScheme.onPrimaryContainer 
+                : theme.colorScheme.onErrorContainer,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserTypeSelector(ThemeData theme) {
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tipo de cuenta',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildUserTypeCard(
+                    theme,
+                    title: 'Cliente',
+                    subtitle: 'Buscar trabajadores',
+                    icon: Icons.person_outline,
+                    isSelected: !_isWorker,
+                    onTap: () => setState(() => _isWorker = false),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildUserTypeCard(
+                    theme,
+                    title: 'Trabajador',
+                    subtitle: 'Ofrecer servicios',
+                    icon: Icons.handyman_outlined,
+                    isSelected: _isWorker,
+                    onTap: () => setState(() => _isWorker = true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserTypeCard(
+    ThemeData theme, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected 
+            ? theme.colorScheme.primaryContainer 
+            : theme.colorScheme.surface,
+          border: Border.all(
+            color: isSelected 
+              ? theme.colorScheme.primary 
+              : theme.colorScheme.outline,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 32,
+              color: isSelected 
+                ? theme.colorScheme.onPrimaryContainer 
+                : theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isSelected 
+                  ? theme.colorScheme.onPrimaryContainer 
+                  : theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isSelected 
+                  ? theme.colorScheme.onPrimaryContainer.withOpacity(0.8)
+                  : theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBasicForm(ThemeData theme) {
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Información personal',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // DNI
+            _buildDniField(),
+            const SizedBox(height: 20),
+            
+            // Nombres
+            TextFormField(
+              controller: _firstNameController,
+              decoration: const InputDecoration(
+                labelText: 'Nombres',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            
+            // Apellidos
+            TextFormField(
+              controller: _lastNameController,
+              decoration: const InputDecoration(
+                labelText: 'Apellidos',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                return null;
+              },
+            ),
+            
+            // Email
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                if (!value.contains('@')) {
+                  return 'Correo inválido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            
+            // Teléfono
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Teléfono',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            
+            // Contraseña
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Contraseña',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                if (value.length < 6) {
+                  return 'Mínimo 6 caracteres';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            
+            // Confirmar contraseña
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: _obscureConfirmPassword,
+              decoration: InputDecoration(
+                labelText: 'Confirmar contraseña',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                if (value != _passwordController.text) {
+                  return 'Las contraseñas no coinciden';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            
+
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkerForm(ThemeData theme) {
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Información de trabajador',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Documentos requeridos
+            Text(
+              'Documentos requeridos',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            // Carga de archivos DNI frontal
+            DocumentUploadWidget(
+              title: 'DNI Frontal',
+              subtitle: 'Sube la foto frontal de tu DNI',
+              icon: Icons.credit_card,
+              file: _dniFrontal,
+              onPickImage: (file) => setState(() => _dniFrontal = file),
+              isRequired: true,
+            ),
+            const SizedBox(height: 16),
+            
+            // Carga de archivos DNI posterior
+            DocumentUploadWidget(
+              title: 'DNI Posterior',
+              subtitle: 'Sube la foto posterior de tu DNI',
+              icon: Icons.credit_card,
+              file: _dniPosterior,
+              onPickImage: (file) => setState(() => _dniPosterior = file),
+              isRequired: true,
+            ),
+            const SizedBox(height: 16),
+            
+            // Carga de certificado único laboral
+            DocumentUploadWidget(
+              title: 'Certificado Único Laboral',
+              subtitle: 'Sube tu certificado único laboral (PDF)',
+              icon: Icons.picture_as_pdf,
+              file: _certificatePdf,
+              onPickImage: (file) => setState(() => _certificatePdf = file),
+              isRequired: true,
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDniField() {
+    return TextField(
+      controller: _dniController,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: 'DNI',
+        suffixIcon: IconButton(
+          icon: Icon(Icons.search),
+          onPressed: () async {
+            final dni = _dniController.text.trim();
+            if (dni.length == 8) {
+              final data = await ValidateService.getDniData(dni);
+              if (data != null) {
+                setState(() {
+                  _firstNameController.text = data['nombres'] ?? '';
+                  _lastNameController.text = '${data['apellido_paterno'] ?? ''} ${data['apellido_materno'] ?? ''}'.trim();
+                });
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('DNI no válido o no encontrado')),
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegisterButton(ThemeData theme) {
+    return FilledButton(
+      onPressed: _isConnected && !_isLoading ? _register : null,
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      child: _isLoading
+        ? const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Text(
+            _isWorker ? 'Registrar como Trabajador' : 'Crear Cuenta',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+    );
+  }
+
+  Widget _buildLoginLink(ThemeData theme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '¿Ya tienes cuenta? ',
+          style: theme.textTheme.bodyMedium,
+        ),
+        TextButton(
+          onPressed: () => context.go('/login'),
+          child: const Text('Iniciar sesión'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneController.dispose();
+    _dniController.dispose();
+    super.dispose();
+  }
+} 

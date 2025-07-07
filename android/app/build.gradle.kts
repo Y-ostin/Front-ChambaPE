@@ -18,6 +18,8 @@ android {
         versionName = flutter.versionName
     }
 
+    // Configuración de signing comentada temporalmente para desarrollo
+    /*
     signingConfigs {
         create("release") {
             storeFile = rootProject.file("keystore/mi_key.jks")
@@ -26,13 +28,16 @@ android {
             keyPassword = "manos123"
         }
     }
+    */
 
     buildTypes {
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("release") // Opcional, si usas tu propia keystore en debug
+            // Usar la configuración de debug por defecto (sin signing personalizado)
+            isDebuggable = true
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            // Solo usar signing personalizado en release si el keystore existe
+            // signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
         }

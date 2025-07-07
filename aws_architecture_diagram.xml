@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net">
+  <diagram name="ChambaPe-AWS-Architecture-Enhanced">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Título Principal -->
+        <mxCell id="title" value="🏗️ ARQUITECTURA AWS - CHAMBA PE" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1E3A8A;" vertex="1" parent="1">
+          <mxGeometry x="400" y="10" width="400" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- VPC Container -->
+        <mxCell id="vpc" value="🌐 VIRTUAL PRIVATE CLOUD (VPC)&#xa;Red privada aislada y segura&#xa;CIDR: 10.0.0.0/16 | 2 Zonas de Disponibilidad" style="rounded=1;strokeWidth=3;strokeColor=#1E40AF;fillColor=#F8FAFC;html=1;fontSize=14;align=center;verticalAlign=top;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1000" height="600" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== ZONA PÚBLICA ===== -->
+        <mxCell id="publicZone" value="🔓 ZONA PÚBLICA&#xa;Servicios accesibles desde Internet" style="rounded=1;dashed=1;strokeColor=#059669;fillColor=#ECFDF5;html=1;fontSize=12;align=center;verticalAlign=top;fontStyle=1;" vertex="1" parent="vpc">
+          <mxGeometry x="60" y="120" width="450" height="540" as="geometry"/>
+        </mxCell>
+
+        <!-- Internet Gateway -->
+        <mxCell id="igw" value="🌍 INTERNET GATEWAY&#xa;Puerta de entrada a Internet&#xa;Permite tráfico público" style="shape=cloud;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#DBEAFE;strokeColor=#1E40AF;" vertex="1" parent="publicZone">
+          <mxGeometry x="150" y="40" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- NAT Gateway -->
+        <mxCell id="nat" value="🔄 NAT GATEWAY&#xa;Traduce IPs privadas a públicas&#xa;Permite salida a Internet" style="shape=hexagon;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#FEF3C7;strokeColor=#D97706;" vertex="1" parent="publicZone">
+          <mxGeometry x="150" y="140" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Application Load Balancer -->
+        <mxCell id="alb" value="⚖️ APPLICATION LOAD BALANCER&#xa;Distribuye tráfico HTTP/HTTPS&#xa;Puertos: 80 (HTTP) / 443 (HTTPS)&#xa;Health checks automáticos" style="shape=mxgraph.aws4.application_load_balancer;html=1;verticalAlign=top;fontSize=11;fillColor=#E0E7FF;strokeColor=#3730A3;" vertex="1" parent="publicZone">
+          <mxGeometry x="120" y="240" width="200" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- S3 Web Hosting -->
+        <mxCell id="s3web" value="📁 S3 WEB HOSTING&#xa;Almacenamiento de archivos estáticos&#xa;HTML, CSS, JS, imágenes&#xa;Configurado para hosting web" style="shape=mxgraph.aws4.s3;html=1;verticalAlign=top;fontSize=11;fillColor=#FCE7F3;strokeColor=#BE185D;" vertex="1" parent="publicZone">
+          <mxGeometry x="320" y="360" width="120" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== ZONA PRIVADA ===== -->
+        <mxCell id="privateZone" value="🔒 ZONA PRIVADA&#xa;Servicios seguros sin acceso directo a Internet" style="rounded=1;dashed=1;strokeColor=#DC2626;fillColor=#FEF2F2;html=1;fontSize=12;align=center;verticalAlign=top;fontStyle=1;" vertex="1" parent="vpc">
+          <mxGeometry x="540" y="120" width="450" height="540" as="geometry"/>
+        </mxCell>
+
+        <!-- ECS Cluster Container -->
+        <mxCell id="ecsCluster" value="🐳 ECS CLUSTER (FARGATE)&#xa;Orquestador de contenedores sin servidor" style="rounded=1;dashed=1;strokeColor=#7C3AED;fillColor=#F3E8FF;html=1;fontSize=12;align=center;verticalAlign=top;fontStyle=1;" vertex="1" parent="privateZone">
+          <mxGeometry x="570" y="160" width="200" height="280" as="geometry"/>
+        </mxCell>
+
+        <!-- Fargate Service -->
+        <mxCell id="fargate" value="🚀 FARGATE SERVICE&#xa;Contenedores de la aplicación&#xa;NestJS Backend API&#xa;Auto-scaling automático" style="shape=mxgraph.aws4.container;html=1;verticalAlign=top;fontSize=11;fillColor=#D1FAE5;strokeColor=#065F46;" vertex="1" parent="ecsCluster">
+          <mxGeometry x="20" y="40" width="160" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ECR Repository -->
+        <mxCell id="ecr" value="📦 ECR REPOSITORY&#xa;Registro de imágenes Docker&#xa;Almacena contenedores de la app&#xa;Integración con ECS" style="shape=mxgraph.aws4.ecr;html=1;verticalAlign=top;fontSize=11;fillColor=#FED7AA;strokeColor=#C2410C;" vertex="1" parent="privateZone">
+          <mxGeometry x="570" y="460" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- RDS PostgreSQL -->
+        <mxCell id="rds" value="🗄️ RDS POSTGRESQL&#xa;Base de datos relacional&#xa;Puerto: 5432&#xa;Backup automático" style="shape=mxgraph.aws4.rds;html=1;verticalAlign=top;fontSize=11;fillColor=#BFDBFE;strokeColor=#1E40AF;" vertex="1" parent="privateZone">
+          <mxGeometry x="740" y="460" width="160" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- S3 Uploads -->
+        <mxCell id="s3uploads" value="📤 S3 UPLOADS&#xa;Almacenamiento de archivos&#xa;Documentos, imágenes de usuarios&#xa;Acceso controlado por IAM" style="shape=mxgraph.aws4.s3;html=1;verticalAlign=top;fontSize=11;fillColor=#FEE2E2;strokeColor=#DC2626;" vertex="1" parent="privateZone">
+          <mxGeometry x="570" y="560" width="160" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== SERVICIOS GLOBALES ===== -->
+        <mxCell id="globalServices" value="🌍 SERVICIOS GLOBALES" style="rounded=1;dashed=1;strokeColor=#059669;fillColor=#F0FDF4;html=1;fontSize=14;align=center;verticalAlign=top;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="80" width="300" height="600" as="geometry"/>
+        </mxCell>
+
+        <!-- Route 53 -->
+        <mxCell id="r53" value="🌐 ROUTE 53&#xa;Servicio DNS global&#xa;Resuelve nombres de dominio&#xa;Health checks y failover" style="shape=mxgraph.aws4.route_53;html=1;verticalAlign=top;fontSize=11;fillColor=#E0E7FF;strokeColor=#3730A3;" vertex="1" parent="globalServices">
+          <mxGeometry x="1120" y="120" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- CloudFront -->
+        <mxCell id="cf" value="⚡ CLOUDFRONT&#xa;Red de distribución de contenido (CDN)&#xa;Cache global para mejor rendimiento&#xa;HTTPS automático" style="shape=mxgraph.aws4.cloudfront;html=1;verticalAlign=top;fontSize=11;fillColor=#FEF3C7;strokeColor=#D97706;" vertex="1" parent="globalServices">
+          <mxGeometry x="1120" y="220" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Certificate Manager -->
+        <mxCell id="acm" value="🔒 CERTIFICATE MANAGER&#xa;Certificados SSL/TLS gratuitos&#xa;Renovación automática&#xa;HTTPS seguro" style="shape=mxgraph.aws4.certificate_manager;html=1;verticalAlign=top;fontSize=11;fillColor=#D1FAE5;strokeColor=#065F46;" vertex="1" parent="globalServices">
+          <mxGeometry x="1120" y="320" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- WAF -->
+        <mxCell id="waf" value="🛡️ WAF&#xa;Web Application Firewall&#xa;Protección contra ataques&#xa;Reglas de seguridad personalizadas" style="shape=mxgraph.aws4.waf;html=1;verticalAlign=top;fontSize=11;fillColor=#FEE2E2;strokeColor=#DC2626;" vertex="1" parent="globalServices">
+          <mxGeometry x="1120" y="420" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== FLUJOS DE DATOS ===== -->
+        
+        <!-- Usuario -> Route 53 -->
+        <mxCell id="flow1" value="👤 Usuario accede a chambape.com" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#059669;strokeWidth=2;" edge="1" parent="1" source="r53">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1000" y="160" as="sourcePoint"/>
+            <mxPoint x="1120" y="160" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Route 53 -> CloudFront -->
+        <mxCell id="flow2" value="📡 DNS Resolution" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#059669;strokeWidth=2;" edge="1" parent="1" source="r53" target="cf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- CloudFront -> ALB -->
+        <mxCell id="flow3" value="🌐 HTTP/HTTPS Request" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#059669;strokeWidth=2;" edge="1" parent="1" source="cf" target="alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ALB -> Fargate -->
+        <mxCell id="flow4" value="⚖️ Load Balancing" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#059669;strokeWidth=2;" edge="1" parent="vpc" source="alb" target="fargate">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Fargate -> RDS -->
+        <mxCell id="flow5" value="🗄️ DB Queries (Puerto 5432)" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#DC2626;strokeWidth=2;" edge="1" parent="vpc" source="fargate" target="rds">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Fargate -> S3 Uploads -->
+        <mxCell id="flow6" value="📤 File Uploads" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#DC2626;strokeWidth=2;" edge="1" parent="vpc" source="fargate" target="s3uploads">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- CloudFront -> S3 Web -->
+        <mxCell id="flow7" value="📁 Static Content" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#059669;strokeWidth=2;" edge="1" parent="1" source="cf" target="s3web">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Fargate -> NAT Gateway -->
+        <mxCell id="flow8" value="🔄 Outbound Internet" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#D97706;strokeWidth=2;" edge="1" parent="vpc" source="fargate" target="nat">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- NAT Gateway -> Internet Gateway -->
+        <mxCell id="flow9" value="🌍 Internet Access" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#D97706;strokeWidth=2;" edge="1" parent="vpc" source="nat" target="igw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ECR -> Fargate -->
+        <mxCell id="flow10" value="📦 Container Images" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;html=1;rounded=0;fontSize=10;strokeColor=#C2410C;strokeWidth=2;" edge="1" parent="vpc" source="ecr" target="fargate">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== LEYENDA ===== -->
+        <mxCell id="legend" value="📋 LEYENDA DE FLUJOS:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="720" width="200" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend1" value="🟢 Verde: Flujo de datos del usuario (entrada)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="750" width="250" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend2" value="🔴 Rojo: Flujo interno de la aplicación" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="770" width="250" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend3" value="🟡 Amarillo: Flujo de salida a Internet" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="790" width="250" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend4" value="🟠 Naranja: Flujo de contenedores" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="810" width="250" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== BENEFICIOS ===== -->
+        <mxCell id="benefits" value="✅ BENEFICIOS DE ESTA ARQUITECTURA:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="720" width="300" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="benefit1" value="🔒 Seguridad: Zonas privadas, WAF, HTTPS obligatorio" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="750" width="350" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="benefit2" value="⚡ Rendimiento: CDN global, Load Balancer, Auto-scaling" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="770" width="350" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="benefit3" value="💰 Costo: Serverless, pago por uso, sin mantenimiento" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="790" width="350" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="benefit4" value="🔄 Escalabilidad: Auto-scaling automático según demanda" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="810" width="350" height="20" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile> 

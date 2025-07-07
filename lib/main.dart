@@ -1,15 +1,18 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'routes/app_router.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/language_provider.dart';
 import 'providers/worker_provider.dart';
+import 'providers/nestjs_provider.dart';
 import 'themes/app_theme.dart';
 import 'firebase_options.dart'; // generado por flutterfire configure
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'services/deep_link_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,14 +28,35 @@ void main() async {
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => LanguageProvider()),
         ChangeNotifierProvider(create: (context) => WorkerProvider()),
+        ChangeNotifierProvider(create: (context) => NestJSProvider()),
       ],
       child: const ChambaPEApp(),
     ),
   );
 }
 
-class ChambaPEApp extends StatelessWidget {
+class ChambaPEApp extends StatefulWidget {
   const ChambaPEApp({super.key});
+
+  @override
+  State<ChambaPEApp> createState() => _ChambaPEAppState();
+}
+
+class _ChambaPEAppState extends State<ChambaPEApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar deep links después de que el widget esté montado
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkService.initialize(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    DeepLinkService.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

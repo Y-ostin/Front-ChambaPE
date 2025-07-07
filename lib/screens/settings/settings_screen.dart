@@ -6,6 +6,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../utils/sample_data.dart';
 import '../../widgets/delete_account_dialog.dart';
+import '../../models/app_user.dart'; // Agregar import
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -31,8 +32,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUser = authProvider.currentUser;
     if (currentUser != null) {
-      _emailController.text = currentUser.email ?? '';
-      _nameController.text = currentUser.name ?? '';
+      _emailController.text = currentUser.email;
+      _nameController.text = currentUser.name;
       _phoneController.text = currentUser.phone ?? '';
       _addressController.text = currentUser.address ?? '';
     }
@@ -145,7 +146,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        currentUser?.name?.substring(0, 1).toUpperCase() ?? 'U',
+                        currentUser != null && currentUser.name.isNotEmpty 
+                          ? currentUser.name.substring(0, 1).toUpperCase() 
+                          : 'U',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,

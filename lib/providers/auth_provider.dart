@@ -1,370 +1,264 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
-class AppUser {
-  final String uid;
-  final String email;
-  final String role;
-  final String? name;
-  final String? phone;
-  final String? address;
-
-  AppUser({
-    required this.uid,
-    required this.email,
-    required this.role,
-    this.name,
-    this.phone,
-    this.address,
-  });
-}
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+import '../services/api_service.dart';
+import '../models/app_user.dart';
+import 'package:provider/provider.dart';
+import 'nestjs_provider.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
-  final _googleSignIn = GoogleSignIn();
-
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  
+  User? _user;
   AppUser? _currentUser;
+  Map<String, dynamic>? _userProfile;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  User? get user => _user;
   AppUser? get currentUser => _currentUser;
-  bool get isAuthenticated => _currentUser != null;
+  Map<String, dynamic>? get userProfile => _userProfile;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  bool get isAuthenticated => _user != null;
 
-  StreamSubscription<User?>? _authStateSubscription;
-  bool _disposed = false;
+  // Verificar estado de autenticación al iniciar
+  Future<void> checkAuthStatus() async {
+    _isLoading = true;
+    notifyListeners();
 
-  // Constructor que escucha cambios de estado de autenticación
-  AuthProvider() {
-    _authStateSubscription = _auth.authStateChanges().listen(
-      _onAuthStateChanged,
-    );
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    _authStateSubscription?.cancel();
-    super.dispose();
-  }
-
-  // Maneja cambios automáticos en el estado de autenticación
-  void _onAuthStateChanged(User? user) async {
-    if (_disposed) return; // Evita notificar si el provider ya fue disposed
-
-    if (user == null) {
-      _currentUser = null;
-    } else {
-      // Solo carga datos si no tenemos usuario actual
-      if (_currentUser?.uid != user.uid) {
-        await _loadUserData(user);
-      }
-    }
-    if (!_disposed) {
-      notifyListeners();
-    }
-  }
-
-  // Carga datos del usuario desde Firestore
-  Future<void> _loadUserData(User user) async {
     try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-
-      if (doc.exists) {
-        final data = doc.data()!;
-        _currentUser = AppUser(
-          uid: user.uid,
-          email: data['email'] ?? user.email ?? '',
-          role: data['role'] ?? 'cliente',
-          name: data['name'],
-          phone: data['phone'],
-          address: data['address'],
-        );
-
-        // Si es trabajador, cargar información adicional
-        if (data['role'] == 'trabajador') {
-          await _loadWorkerData(user.uid);
-        }
+      // Verificar usuario de Firebase
+      _user = _auth.currentUser;
+      
+      // Si hay usuario, obtener perfil del backend
+      if (_user != null) {
+        await _loadUserProfile();
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      _errorMessage = 'Error al verificar autenticación: $e';
+      print(_errorMessage);
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  // Carga información específica del trabajador
-  Future<void> _loadWorkerData(String uid) async {
-    try {
-      final workerDoc = await _firestore.collection('workers').doc(uid).get();
+  // Login con email y contraseña (Backend + Firebase)
+  Future<void> login(String email, String password, BuildContext context) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
 
-      if (workerDoc.exists) {
-        final workerData = workerDoc.data()!;
-        // Actualizar el usuario actual con información del trabajador
-        _currentUser = AppUser(
-          uid: _currentUser!.uid,
-          email: _currentUser!.email,
-          role: _currentUser!.role,
-          name: _currentUser!.name,
-          phone: workerData['phone'] ?? _currentUser!.phone,
-          address: workerData['address'] ?? _currentUser!.address,
-        );
-      }
-    } catch (e) {
-      print('Error loading worker data: $e');
-    }
-  }
-
-  Future<void> login(String email, String password) async {
     try {
-      final cred = await _auth.signInWithEmailAndPassword(
+      // 1. Login en el backend usando NestJSProvider para mantener consistencia
+      final nestJSProvider = context.read<NestJSProvider>();
+      final backendResult = await nestJSProvider.authenticateWithNestJS(
+        email,
+        password,
+      );
+
+      // 2. Login en Firebase (para mantener consistencia)
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      final doc =
-          await _firestore.collection('users').doc(cred.user!.uid).get();
-
-      if (!doc.exists) {
-        throw Exception('El usuario no tiene datos registrados en Firestore.');
+      _user = credential.user;
+      
+      // 3. Cargar perfil del usuario
+      await _loadUserProfile();
+      
+      // 4. Si es trabajador, verificar si necesita completar registro
+      if (_currentUser?.role == 'WORKER' || _currentUser?.role == 'trabajador') {
+        final hasServices = await nestJSProvider.hasWorkerServices();
+        if (!hasServices) {
+          // Redirigir a completar registro
+          context.go('/complete-worker-registration');
+          return;
+        }
       }
 
-      final data = doc.data()!;
-      _currentUser = AppUser(
-        uid: cred.user!.uid,
-        email: data['email'] ?? '',
-        role: data['role'] ?? 'cliente',
-        name: data['name'],
-        phone: data['phone'],
-        address: data['address'],
-      );
-
-      notifyListeners();
     } catch (e) {
-      rethrow;
+      _errorMessage = 'Error al iniciar sesión: $e';
+      throw Exception(_errorMessage);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
+  // Registro (Backend + Firebase)
+  Future<void> register({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // 1. Registro en el backend
+      final backendResult = await ApiService.register(
+        email: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
+      );
+
+      if (!backendResult['success']) {
+        throw Exception(backendResult['message']);
+      }
+
+      // 2. Registro en Firebase
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // 3. Actualizar perfil en Firebase
+      await credential.user?.updateDisplayName('$firstName $lastName');
+
+      _user = credential.user;
+
+    } catch (e) {
+      _errorMessage = 'Error al registrar: $e';
+      throw Exception(_errorMessage);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Login con Google
   Future<void> signInWithGoogle() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return; // Usuario canceló
+      if (googleUser == null) {
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final userCred = await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      _user = userCredential.user;
 
-      final userDoc =
-          await _firestore.collection('users').doc(userCred.user!.uid).get();
-
-      if (!userDoc.exists) {
-        // Si es su primer login, lo guardamos en Firestore
-        await _firestore.collection('users').doc(userCred.user!.uid).set({
-          'name': userCred.user!.displayName ?? '',
-          'email': userCred.user!.email ?? '',
-          'role': 'cliente',
-          'uid': userCred.user!.uid,
-        });
+      // Verificar si el usuario existe en el backend
+      if (_user != null) {
+        await _loadUserProfile();
       }
 
-      _currentUser = AppUser(
-        uid: userCred.user!.uid,
-        email: userCred.user!.email ?? '',
-        role: userDoc.data()?['role'] ?? 'cliente',
-        name: userDoc.data()?['name'],
-        phone: userDoc.data()?['phone'],
-        address: userDoc.data()?['address'],
-      );
-      notifyListeners();
     } catch (e) {
-      throw Exception('Error en Google Sign-In: $e');
+      _errorMessage = 'Error al iniciar sesión con Google: $e';
+      throw Exception(_errorMessage);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  // Método de logout mejorado
+  // Logout
   Future<void> logout() async {
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      // Cierra sesión en Google si está activa
-      if (await _googleSignIn.isSignedIn()) {
-        await _googleSignIn.signOut();
-      }
-
-      // Cierra sesión en Firebase Auth
       await _auth.signOut();
-
-      // Limpia el usuario actual
+      await _googleSignIn.signOut();
+      await ApiService.logout();
+      
+      _user = null;
       _currentUser = null;
-
-      // Notifica los cambios
-      notifyListeners();
+      _userProfile = null;
+      _errorMessage = null;
     } catch (e) {
-      print('Error during logout: $e');
-      // Incluso si hay error, limpia el estado local
-      _currentUser = null;
-      notifyListeners();
+      _errorMessage = 'Error al cerrar sesión: $e';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // Cargar perfil del usuario desde el backend
+  Future<void> _loadUserProfile() async {
+    try {
+      final profileResult = await ApiService.getProfile();
+      
+      if (profileResult['success']) {
+        _userProfile = profileResult['data'];
+        // Crear AppUser desde los datos del backend
+        if (_userProfile != null && _user != null) {
+          _currentUser = AppUser(
+            uid: _user!.uid,
+            email: _userProfile!['email'] ?? _user!.email ?? '',
+            name: '${_userProfile!['firstName'] ?? ''} ${_userProfile!['lastName'] ?? ''}'.trim(),
+            phone: _userProfile!['phone'],
+            address: _userProfile!['address'],
+            role: _userProfile!['role']?['name'] ?? 'USER',
+            isActive: _userProfile!['isActive'] ?? true,
+            photoURL: _user!.photoURL,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading user profile: $e');
     }
   }
 
-  // Método para verificar si hay una sesión activa al iniciar la app
-  Future<void> checkAuthStatus() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await _loadUserData(user);
-    }
-  }
-
-  // Método para cerrar sesión (alias de logout)
+  // Logout/SignOut
   Future<void> signOut() async {
     await logout();
   }
 
-  // Método para eliminar cuenta permanentemente
-  Future<void> deleteAccount() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('No hay usuario autenticado');
-      }
-
-      // Eliminar datos del usuario de Firestore
-      await _deleteUserData(user.uid);
-
-      // Eliminar la cuenta de Firebase Auth
-      await user.delete();
-
-      // Limpiar el usuario actual
-      _currentUser = null;
-      notifyListeners();
-    } catch (e) {
-      print('Error deleting account: $e');
-      rethrow;
-    }
-  }
-
-  // Método para eliminar cuenta con reautenticación
+  // Método para eliminar cuenta
   Future<void> deleteAccountWithReauth(String password) async {
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('No hay usuario autenticado');
+      if (_user != null) {
+        // Re-autenticar antes de eliminar
+        final credential = EmailAuthProvider.credential(
+          email: _user!.email!,
+          password: password,
+        );
+        await _user!.reauthenticateWithCredential(credential);
+        
+        // Eliminar usuario de Firebase
+        await _user!.delete();
+        
+        // Limpiar estado
+        _user = null;
+        _currentUser = null;
+        _userProfile = null;
+        await ApiService.logout();
       }
-
-      // Reautenticar al usuario antes de eliminar
-      final credential = EmailAuthProvider.credential(
-        email: user.email!,
-        password: password,
-      );
-
-      await user.reauthenticateWithCredential(credential);
-
-      // Eliminar datos del usuario de Firestore
-      await _deleteUserData(user.uid);
-
-      // Eliminar la cuenta de Firebase Auth
-      await user.delete();
-
-      // Limpiar el usuario actual
-      _currentUser = null;
+    } catch (e) {
+      _errorMessage = 'Error al eliminar cuenta: $e';
+      throw Exception(_errorMessage);
+    } finally {
+      _isLoading = false;
       notifyListeners();
-    } catch (e) {
-      print('Error deleting account with reauth: $e');
-      rethrow;
     }
   }
 
-  // Eliminar todos los datos del usuario de Firestore
-  Future<void> _deleteUserData(String uid) async {
-    try {
-      // Obtener el rol del usuario antes de eliminarlo
-      final userDoc = await _firestore.collection('users').doc(uid).get();
-      final userRole = userDoc.data()?['role'] ?? 'cliente';
-
-      // Eliminar datos específicos según el rol
-      if (userRole == 'trabajador') {
-        // Eliminar datos del trabajador
-        await _firestore.collection('workers').doc(uid).delete();
-
-        // Eliminar conversaciones donde participa el trabajador
-        await _deleteUserConversations(uid);
-      } else {
-        // Eliminar conversaciones donde participa el cliente
-        await _deleteUserConversations(uid);
-      }
-
-      // Eliminar el documento principal del usuario
-      await _firestore.collection('users').doc(uid).delete();
-
-      print('User data deleted successfully');
-    } catch (e) {
-      print('Error deleting user data: $e');
-      rethrow;
-    }
-  }
-
-  // Eliminar conversaciones del usuario
-  Future<void> _deleteUserConversations(String uid) async {
-    try {
-      // Buscar conversaciones donde el usuario participa
-      final conversationsQuery =
-          await _firestore
-              .collection('conversations')
-              .where('clientId', isEqualTo: uid)
-              .get();
-
-      final workerConversationsQuery =
-          await _firestore
-              .collection('conversations')
-              .where('workerId', isEqualTo: uid)
-              .get();
-
-      // Eliminar todas las conversaciones encontradas
-      final batch = _firestore.batch();
-
-      // Eliminar conversaciones como cliente
-      for (final doc in conversationsQuery.docs) {
-        // Eliminar mensajes de la conversación
-        final messagesQuery = await doc.reference.collection('messages').get();
-        for (final messageDoc in messagesQuery.docs) {
-          batch.delete(messageDoc.reference);
-        }
-
-        // Eliminar estado de escritura
-        final typingQuery = await doc.reference.collection('typing').get();
-        for (final typingDoc in typingQuery.docs) {
-          batch.delete(typingDoc.reference);
-        }
-
-        // Eliminar la conversación
-        batch.delete(doc.reference);
-      }
-
-      // Eliminar conversaciones como trabajador
-      for (final doc in workerConversationsQuery.docs) {
-        // Eliminar mensajes de la conversación
-        final messagesQuery = await doc.reference.collection('messages').get();
-        for (final messageDoc in messagesQuery.docs) {
-          batch.delete(messageDoc.reference);
-        }
-
-        // Eliminar estado de escritura
-        final typingQuery = await doc.reference.collection('typing').get();
-        for (final typingDoc in typingQuery.docs) {
-          batch.delete(typingDoc.reference);
-        }
-
-        // Eliminar la conversación
-        batch.delete(doc.reference);
-      }
-
-      await batch.commit();
-      print('User conversations deleted successfully');
-    } catch (e) {
-      print('Error deleting user conversations: $e');
-      rethrow;
-    }
-  }
+  // Métodos auxiliares
+  bool get isWorker => _currentUser?.role == 'WORKER' || _currentUser?.role == 'trabajador';
+  bool get isClient => _currentUser?.role == 'USER' || _currentUser?.role == 'cliente';
+  String get fullName => _currentUser?.name ?? '';
 }
