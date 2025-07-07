@@ -20,6 +20,8 @@ import '../screens/auth/email_verification_screen.dart';
 import '../screens/auth/complete_worker_registration_screen.dart';
 import '../screens/auth/complete_worker_profile_screen.dart';
 import '../screens/worker/worker_availability_screen.dart';
+import '../screens/worker/worker_complete_profile_screen.dart';
+import '../screens/worker/worker_dashboard_screen.dart';
 
 class AppRouter {
   static GoRouter router(BuildContext context) {
@@ -44,7 +46,7 @@ class AppRouter {
         ),
         GoRoute(
           path: '/worker/dashboard',
-          builder: (_, __) => const HomeWorkerScreen(),
+          builder: (_, __) => const WorkerDashboardScreen(),
         ),
         
         // Rutas de perfil
@@ -101,7 +103,7 @@ class AppRouter {
         ),
         GoRoute(
           path: '/complete-worker-profile',
-          builder: (_, __) => const CompleteWorkerProfileScreen(),
+          builder: (_, __) => const WorkerCompleteProfileScreen(),
         ),
         GoRoute(
           path: '/worker/verification',

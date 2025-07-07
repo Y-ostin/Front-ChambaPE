@@ -12,7 +12,7 @@ class ValidateService {
       final response = await http.get(
         Uri.parse('$baseUrl/validate/dni?dni=$dni'),
         headers: {
-          'Authorization': 'Bearer 88794da72e28b5d99bfbae3f32cfbc4b56328da81388bf11761350dbda7eb94f',
+          'Authorization': 'Bearer 4eea59a3b8cf6b36a7c01557fda685dd30049354367d0f03b9d0c00e3fc17015',
           'Accept': 'application/json',
         },
       );

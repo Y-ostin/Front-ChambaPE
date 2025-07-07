@@ -38,6 +38,64 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
   File? _dniPosterior;
   File? _certificatePdf;
 
+  // Función helper para mostrar errores de manera elegante
+  void _showErrorSnackBar(String title, String message, {Color? backgroundColor}) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  backgroundColor == Colors.orange ? Icons.warning : Icons.error,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor ?? Colors.red,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+        action: SnackBarAction(
+          label: 'Entendido',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -223,18 +281,36 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
       }
     } catch (e) {
       print('❌ Error en registro: $e');
-      String errorMsg = 'ERROR INTERNO';
-      if (e.toString().contains('emailAlreadyExists')) {
-        errorMsg = 'CORREO EXISTENTE';
+      String errorMsg = 'Error interno del servidor';
+      String errorTitle = 'Error';
+      Color backgroundColor = Colors.red;
+      
+      // Manejar errores específicos del backend
+      if (e.toString().contains('emailAlreadyExists') || 
+          e.toString().contains('emailExists') ||
+          e.toString().contains('email already exists')) {
+        errorMsg = 'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
+        errorTitle = 'Correo existente';
+        backgroundColor = Colors.orange;
+      } else if (e.toString().contains('password') && e.toString().contains('weak')) {
+        errorMsg = 'La contraseña debe tener al menos 6 caracteres.';
+        errorTitle = 'Contraseña débil';
+        backgroundColor = Colors.orange;
+      } else if (e.toString().contains('firstName') || e.toString().contains('lastName')) {
+        errorMsg = 'Por favor, completa todos los campos obligatorios.';
+        errorTitle = 'Campos incompletos';
+        backgroundColor = Colors.orange;
+      } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+        errorMsg = 'Error de conexión. Verifica tu conexión a internet.';
+        errorTitle = 'Error de conexión';
+        backgroundColor = Colors.red;
+      } else if (e.toString().contains('422')) {
+        errorMsg = 'Datos inválidos. Verifica la información ingresada.';
+        errorTitle = 'Datos inválidos';
+        backgroundColor = Colors.orange;
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMsg),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      
+      _showErrorSnackBar(errorTitle, errorMsg, backgroundColor: backgroundColor);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -270,6 +346,82 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
       
     } catch (e) {
       print('❌ Error en registro público de trabajador: $e');
+      
+      // Manejar errores específicos del registro de trabajador
+      String errorMsg = 'Error al registrar trabajador';
+      String errorTitle = 'Error de registro';
+      Color backgroundColor = Colors.red;
+      
+      // Extraer el tipo de error del mensaje (formato: tipo:mensaje)
+      String errorString = e.toString();
+      if (errorString.contains(':')) {
+        final parts = errorString.split(':');
+        if (parts.length >= 2) {
+          final errorType = parts[0].replaceAll('Exception: ', '');
+          final errorMessage = parts.sublist(1).join(':');
+          
+          switch (errorType) {
+            case 'emailAlreadyExists':
+              errorMsg = 'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
+              errorTitle = 'Correo existente';
+              backgroundColor = Colors.orange;
+              break;
+            case 'files':
+              errorMsg = errorMessage;
+              errorTitle = 'Documentos faltantes';
+              backgroundColor = Colors.orange;
+              break;
+            case 'dni':
+              errorMsg = errorMessage;
+              errorTitle = 'DNI inválido';
+              backgroundColor = Colors.orange;
+              break;
+            case 'password':
+              errorMsg = errorMessage;
+              errorTitle = 'Contraseña inválida';
+              backgroundColor = Colors.orange;
+              break;
+            case 'fields':
+              errorMsg = errorMessage;
+              errorTitle = 'Campos incompletos';
+              backgroundColor = Colors.orange;
+              break;
+            case 'general':
+              errorMsg = errorMessage;
+              errorTitle = 'Error de registro';
+              backgroundColor = Colors.red;
+              break;
+            default:
+              errorMsg = errorMessage;
+              errorTitle = 'Error de registro';
+              backgroundColor = Colors.red;
+          }
+        }
+      } else {
+        // Fallback para errores sin formato específico
+        if (errorString.contains('emailAlreadyExists') || 
+            errorString.contains('emailExists') ||
+            errorString.contains('email already exists')) {
+          errorMsg = 'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
+          errorTitle = 'Correo existente';
+          backgroundColor = Colors.orange;
+        } else if (errorString.contains('files') && errorString.contains('required')) {
+          errorMsg = 'Todos los documentos son requeridos: DNI frontal, DNI posterior y certificado PDF.';
+          errorTitle = 'Documentos faltantes';
+          backgroundColor = Colors.orange;
+        } else if (errorString.contains('dni') && errorString.contains('invalid')) {
+          errorMsg = 'El número de DNI ingresado no es válido.';
+          errorTitle = 'DNI inválido';
+          backgroundColor = Colors.orange;
+        } else if (errorString.contains('validation') || errorString.contains('422')) {
+          errorMsg = 'Por favor, verifica que todos los datos sean correctos.';
+          errorTitle = 'Datos inválidos';
+          backgroundColor = Colors.orange;
+        }
+      }
+      
+      _showErrorSnackBar(errorTitle, errorMsg, backgroundColor: backgroundColor);
+      
       throw Exception('Error al registrar trabajador: $e');
     }
   }

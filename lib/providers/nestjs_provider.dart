@@ -286,14 +286,50 @@ class NestJSProvider extends ChangeNotifier {
         return data;
       } else {
         String errorMessage = 'Error en el registro público de trabajador';
+        String errorType = 'general';
+        
         if (responseData.isNotEmpty) {
           try {
             final error = jsonDecode(responseData);
-            errorMessage = error['message'] ?? error['errors']?.toString() ?? errorMessage;
+            
+            // Extraer información específica del error
+            if (error['errors'] != null) {
+              final errors = error['errors'] as Map<String, dynamic>;
+              
+              if (errors.containsKey('email')) {
+                if (errors['email'] == 'emailAlreadyExists' || 
+                    errors['email'] == 'emailExists') {
+                  errorMessage = 'Este correo electrónico ya está registrado';
+                  errorType = 'emailAlreadyExists';
+                }
+              } else if (errors.containsKey('files')) {
+                errorMessage = errors['files'] ?? 'Error con los archivos';
+                errorType = 'files';
+              } else if (errors.containsKey('dniNumber')) {
+                errorMessage = errors['dniNumber'] ?? 'Error con el DNI';
+                errorType = 'dni';
+              } else if (errors.containsKey('password')) {
+                errorMessage = errors['password'] ?? 'Error con la contraseña';
+                errorType = 'password';
+              } else if (errors.containsKey('firstName') || errors.containsKey('lastName')) {
+                errorMessage = 'Por favor, completa todos los campos obligatorios';
+                errorType = 'fields';
+              }
+            } else if (error['message'] != null) {
+              errorMessage = error['message'];
+            }
+            
+            // Agregar el tipo de error al mensaje para facilitar el manejo en la UI
+            errorMessage = '$errorType:$errorMessage';
+            
           } catch (e) {
             debugPrint('Error parsing error response: $e');
+            errorMessage = 'general:Error en el registro público de trabajador';
           }
+        } else {
+          errorMessage = 'general:Error en el registro público de trabajador';
         }
+        
         throw Exception(errorMessage);
       }
     } catch (e) {
@@ -767,4 +803,90 @@ class NestJSProvider extends ChangeNotifier {
       return false;
     }
   }
-} 
+
+  // Obtener estadísticas del dashboard del trabajador
+  Future<Map<String, dynamic>?> getWorkerDashboardStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/workers/me/dashboard-stats'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Get worker dashboard stats error: $e');
+      return null;
+    }
+  }
+
+  // Obtener trabajos disponibles para el trabajador
+  Future<List<Map<String, dynamic>>> getWorkerAvailableJobs() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/workers/me/available-jobs'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['jobs'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Get worker available jobs error: $e');
+      return [];
+    }
+  }
+
+  // Aceptar trabajo
+  Future<bool> acceptJob(int jobId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/workers/me/accept-job/$jobId'),
+        headers: _headers,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Accept job error: $e');
+      return false;
+    }
+  }
+
+  // Rechazar trabajo
+  Future<bool> rejectJob(int jobId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/workers/me/reject-job/$jobId'),
+        headers: _headers,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Reject job error: $e');
+      return false;
+    }
+  }
+
+  // Obtener trabajos asignados al trabajador
+  Future<List<Map<String, dynamic>>> getWorkerAssignedJobs() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/workers/me/assigned-jobs'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['jobs'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Get worker assigned jobs error: $e');
+      return [];
+    }
+  }
+}
