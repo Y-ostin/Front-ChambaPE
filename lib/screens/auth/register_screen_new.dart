@@ -215,18 +215,8 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
       }
 
       // Registro básico de usuario en el backend
-      print('🚀 Registrando usuario en el backend...');
-      final userResponse = await nestJSProvider.registerUser({
-        'email': _emailController.text.trim(),
-        'password': _passwordController.text,
-        'firstName': _firstNameController.text.trim(),
-        'lastName': _lastNameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-      });
-
-      // Si es trabajador, registrar como trabajador inmediatamente
       if (_isWorker) {
-        print('🔧 Registrando como trabajador después del registro básico...');
+        print('🚀 Registrando como trabajador en el backend...');
         try {
           await _registerWorker(nestJSProvider);
           print('✅ Trabajador registrado exitosamente');
@@ -245,6 +235,16 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
             );
           }
         }
+      } else {
+        // Si es usuario normal, registrar usuario
+        print('🚀 Registrando usuario en el backend...');
+        final userResponse = await nestJSProvider.registerUser({
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+          'firstName': _firstNameController.text.trim(),
+          'lastName': _lastNameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+        });
       }
 
       // Mostrar éxito del backend ANTES de Firebase

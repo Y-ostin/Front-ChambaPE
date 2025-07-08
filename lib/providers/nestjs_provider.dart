@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import '../config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/service_category.dart';
 
 class NestJSProvider extends ChangeNotifier {
   final String _baseUrl = ApiConfig.baseUrl;
@@ -230,8 +231,6 @@ class NestJSProvider extends ChangeNotifier {
     String? description,
     double? radiusKm,
     String? address,
-    double? latitude,
-    double? longitude,
   }) async {
     try {
       debugPrint('🚀 Iniciando registro público de trabajador...');
@@ -251,8 +250,6 @@ class NestJSProvider extends ChangeNotifier {
       if (description != null) request.fields['description'] = description;
       if (radiusKm != null) request.fields['radiusKm'] = radiusKm.toString();
       if (address != null) request.fields['address'] = address;
-      if (latitude != null) request.fields['latitude'] = latitude.toString();
-      if (longitude != null) request.fields['longitude'] = longitude.toString();
 
       // Verificar existencia y tamaño de los archivos antes de agregarlos
       print(
@@ -519,21 +516,85 @@ class NestJSProvider extends ChangeNotifier {
     }
   }
 
-  // Verificar si el usuario tiene perfil de trabajador
+  // Verificar si el usuario tiene perfil de trabajador completo (incluyendo documentos)
   Future<bool> hasWorkerProfile() async {
     try {
       final user = await getCurrentUser();
-      if (user == null) return false;
+      if (user == null) {
+        debugPrint('❌ hasWorkerProfile - No hay usuario autenticado');
+        return false;
+      }
 
+      debugPrint('🔍 hasWorkerProfile - Verificando perfil para usuario: ${user['id']}');
+
+      // Si el usuario es Worker y está activo, asumimos que tiene perfil completo
+      if (user['role'] != null && user['role']['name'] == 'Worker') {
+        debugPrint('🔍 hasWorkerProfile - Usuario es Worker, verificando estado...');
+
+        if (user['status'] != null && user['status']['name'] == 'Active') {
+          debugPrint('🔍 hasWorkerProfile - Usuario está activo, asumiendo perfil completo');
+          return true;
+        } else {
+          debugPrint('🔍 hasWorkerProfile - Usuario no está activo');
+          return false;
+        }
+      }
+
+      debugPrint('🔍 hasWorkerProfile - Usuario no es Worker');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Has worker profile error: $e');
+      return false;
+    }
+  }
+
+  // Método de respaldo para verificar si el trabajador tiene servicios configurados
+  Future<bool> _checkWorkerServicesAsFallback() async {
+    try {
+      debugPrint('🔍 _checkWorkerServicesAsFallback - Verificando servicios como respaldo');
+      
+      final response = await http.get(
+        Uri.parse('$_baseUrl/workers/me/services'),
+        headers: _headers,
+      );
+
+      debugPrint('🔍 _checkWorkerServicesAsFallback - Response status: ${response.statusCode}');
+      debugPrint('🔍 _checkWorkerServicesAsFallback - Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final services = data is List ? data : [];
+        final hasServices = services.isNotEmpty;
+        
+        debugPrint('🔍 _checkWorkerServicesAsFallback - Tiene servicios: $hasServices (${services.length} servicios)');
+        
+        // Si tiene servicios configurados, asumimos que ya completó el perfil
+        return hasServices;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('❌ _checkWorkerServicesAsFallback error: $e');
+      return false;
+    }
+  }
+
+  // Obtener perfil completo del trabajador
+  Future<Map<String, dynamic>?> getWorkerProfile() async {
+    try {
       final response = await http.get(
         Uri.parse('$_baseUrl/workers/profile'),
         headers: _headers,
       );
 
-      return response.statusCode == 200;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      }
+      return null;
     } catch (e) {
-      debugPrint('Has worker profile error: $e');
-      return false;
+      debugPrint('Get worker profile error: $e');
+      return null;
     }
   }
 
@@ -541,13 +602,13 @@ class NestJSProvider extends ChangeNotifier {
   Future<bool> hasWorkerServices() async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/workers/services'),
+        Uri.parse('$_baseUrl/workers/me/services'),
         headers: _headers,
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final services = data['data'] ?? [];
+        final services = data is List ? data : [];
         return services.isNotEmpty;
       }
       return false;
@@ -557,23 +618,52 @@ class NestJSProvider extends ChangeNotifier {
     }
   }
 
-  // Obtener categorías de servicios
-  Future<List<Map<String, dynamic>>> getServiceCategories() async {
+  // Configurar servicios del trabajador
+  Future<void> configureWorkerServices(Map<String, dynamic> serviceData) async {
     try {
-      final url = Uri.parse('$_baseUrl/service-categories');
-      debugPrint('🌐 GET categorías provider => $url');
-      final response = await http
-          .get(url, headers: _headers)
-          .timeout(const Duration(seconds: 10));
-      debugPrint('🌐 Status: ${response.statusCode} Body: ${response.body}');
+      print('--- CONFIGURAR SERVICIOS DEL TRABAJADOR ---');
+      print('Usuario autenticado: \\${_currentUser}');
+      print('Token JWT: \\${_authToken}');
+      print('Body enviado: \\${jsonEncode(serviceData)}');
+      print('Endpoint: \\$_baseUrl/workers/me/services');
+      final response = await http.post(
+        Uri.parse('$_baseUrl/workers/me/services'),
+        headers: {
+          ..._headers,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(serviceData),
+      );
+
+      print('Respuesta status: \\${response.statusCode}');
+      print('Respuesta body: \\${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ Servicios configurados exitosamente');
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Error al configurar servicios');
+      }
+    } catch (e) {
+      print('❌ Error configurando servicios: $e');
+      rethrow;
+    }
+  }
+
+  // Obtener categorías de servicios
+  Future<List<ServiceCategory>> getServiceCategories() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/service-categories'),
+        headers: _headers,
+      );
 
       if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        if (decoded is List) {
-          return List<Map<String, dynamic>>.from(decoded);
-        } else if (decoded is Map<String, dynamic>) {
-          return List<Map<String, dynamic>>.from(decoded['data'] ?? []);
-        }
+        final data = jsonDecode(response.body);
+        final categoriesData = data is List ? data : [];
+        return categoriesData
+            .map<ServiceCategory>((json) => ServiceCategory.fromJson(json as Map<String, dynamic>))
+            .toList();
       }
       return [];
     } catch (e) {
@@ -614,12 +704,22 @@ class NestJSProvider extends ChangeNotifier {
   }
 
   // Toggle disponibilidad del trabajador
-  Future<bool> toggleActiveToday() async {
+  Future<bool> toggleActiveToday({double? latitude, double? longitude}) async {
     try {
+      final body = <String, dynamic>{};
+      if (latitude != null && longitude != null) {
+        body['latitude'] = latitude;
+        body['longitude'] = longitude;
+      }
+
       final response = await http.patch(
-        Uri.parse('$_baseUrl/workers/toggle-availability'),
+        Uri.parse('$_baseUrl/workers/me/toggle-active'),
         headers: _headers,
+        body: body.isNotEmpty ? jsonEncode(body) : null,
       );
+
+      debugPrint('📡 Toggle Active Response Status: ${response.statusCode}');
+      debugPrint('📡 Toggle Active Response Body: ${response.body}');
 
       return response.statusCode == 200;
     } catch (e) {
@@ -921,14 +1021,12 @@ class NestJSProvider extends ChangeNotifier {
       return [];
     }
   }
-
   // Limpia token y usuario (usado al cerrar sesión globalmente)
   Future<void> clearAuth() async {
     print('NestJSProvider.clearAuth(): limpiando token y usuario');
     _authToken = null;
     _currentUser = null;
 
-    // Eliminar token del almacenamiento local para evitar que la sesión persista
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');

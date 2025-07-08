@@ -22,6 +22,7 @@ class _WorkerAvailabilityScreenState extends State<WorkerAvailabilityScreen> {
     });
     final nestJSProvider = context.read<NestJSProvider>();
     try {
+      bool disponibleOk = false; // Declarar aquí
       if (available) {
         // Pedir permisos de ubicación
         LocationPermission permission = await Geolocator.checkPermission();
@@ -37,17 +38,15 @@ class _WorkerAvailabilityScreenState extends State<WorkerAvailabilityScreen> {
         }
         // Obtener ubicación
         final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-        final ubicacionOk = await nestJSProvider.updateWorkerLocation(position.latitude, position.longitude);
-        if (!ubicacionOk) {
-          setState(() {
-            _errorMessage = 'No se pudo actualizar la ubicación.';
-            _isLoading = false;
-          });
-          return;
-        }
+        // Cambiar estado de disponibilidad con ubicación
+        disponibleOk = await nestJSProvider.toggleActiveToday(
+          latitude: position.latitude,
+          longitude: position.longitude,
+        );
+      } else {
+        // Solo cambiar estado de disponibilidad (sin ubicación)
+        disponibleOk = await nestJSProvider.toggleActiveToday();
       }
-      // Cambiar estado de disponibilidad
-      final disponibleOk = await nestJSProvider.toggleWorkerAvailability();
       if (disponibleOk) {
         if (available) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +55,7 @@ class _WorkerAvailabilityScreenState extends State<WorkerAvailabilityScreen> {
               backgroundColor: Colors.green,
             ),
           );
-        } else {
+      } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Hoy no recibirás ofertas. Puedes cambiar tu estado cuando quieras.'),
@@ -104,7 +103,7 @@ class _WorkerAvailabilityScreenState extends State<WorkerAvailabilityScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Si eliges "Sí", se pedirá tu ubicación para que los clientes puedan encontrarte y recibirás ofertas. Si eliges "No", no recibirás ofertas hoy.',
+                'Si eliges "Sí", se pedirá tu ubicación actual para que los clientes cercanos puedan encontrarte y recibirás ofertas automáticamente. Si eliges "No", no recibirás ofertas hoy.',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),

@@ -37,11 +37,9 @@ class _CompleteWorkerRegistrationScreenState
       final categoriesData = await nestJSProvider.getServiceCategories();
 
       setState(() {
-        _serviceCategories =
-            categoriesData
-                .map((data) => ServiceCategory.fromJson(data))
-                .where((category) => category.isActive)
-                .toList();
+        _serviceCategories = categoriesData
+            .where((category) => category.isActive)
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -341,34 +339,31 @@ class _CompleteWorkerRegistrationScreenState
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child:
-                                _isSaving
-                                    ? const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
+                            child: _isSaving
+                                ? const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
                                           ),
                                         ),
-                                        SizedBox(width: 12),
-                                        Text('Guardando...'),
-                                      ],
-                                    )
-                                    : const Text(
-                                      'Completar Registro',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
                                       ),
+                                      SizedBox(width: 12),
+                                      Text('Guardando...'),
+                                    ],
+                                  )
+                                : const Text(
+                                    'Completar Registro',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
                                     ),
+                                  ),
                           ),
                         ),
                       ],
