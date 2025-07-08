@@ -36,7 +36,6 @@ class _CompleteWorkerRegistrationScreenState extends State<CompleteWorkerRegistr
       
       setState(() {
         _serviceCategories = categoriesData
-            .map((data) => ServiceCategory.fromJson(data))
             .where((category) => category.isActive)
             .toList();
         _isLoading = false;
@@ -255,10 +254,10 @@ class _CompleteWorkerRegistrationScreenState extends State<CompleteWorkerRegistr
                                               color: isSelected ? Colors.blue : Colors.black87,
                                             ),
                                           ),
-                                          if (category.description != null) ...[
+                                          if (category.description.isNotEmpty) ...[
                                             const SizedBox(height: 4),
                                             Text(
-                                              category.description!,
+                                              category.description,
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 color: Colors.grey.shade600,

@@ -19,6 +19,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/auth/email_verification_screen.dart';
 import '../screens/auth/complete_worker_registration_screen.dart';
 import '../screens/auth/complete_worker_profile_screen.dart';
+import '../screens/worker/configure_worker_services_screen.dart';
 import '../screens/worker/worker_availability_screen.dart';
 import '../screens/worker/worker_complete_profile_screen.dart';
 import '../screens/worker/worker_dashboard_screen.dart';
@@ -106,6 +107,10 @@ class AppRouter {
           builder: (_, __) => const WorkerCompleteProfileScreen(),
         ),
         GoRoute(
+          path: '/configure-worker-services',
+          builder: (_, __) => const ConfigureWorkerServicesScreen(),
+        ),
+        GoRoute(
           path: '/worker/verification',
           builder: (_, __) => const WorkerVerificationScreen(),
         ),
@@ -170,28 +175,9 @@ class AppRouter {
             print('🔍 Usuario NestJS: ${nestJS.currentUser}');
           }
           
-          if (userRole == 'worker') {
-            print('🔍 Usuario es trabajador, verificando perfil completo...');
-            // Verificar si el trabajador tiene perfil completo
-            final hasProfile = await nestJS.hasWorkerProfile();
-            print('🔍 Tiene perfil completo: $hasProfile');
-            if (!hasProfile) {
-              print('🔍 Redirigiendo a completar perfil de trabajador');
-              return '/complete-worker-profile';
-            }
-            // Verificar si el trabajador tiene servicios configurados
-            final hasServices = await nestJS.hasWorkerServices();
-            print('🔍 Tiene servicios: $hasServices');
-            if (!hasServices) {
-              print('🔍 Redirigiendo a completar registro de trabajador');
-              return '/complete-worker-registration';
-            }
-            print('🔍 Redirigiendo a dashboard de trabajador');
-            return '/worker/dashboard';
-          } else {
-            print('🔍 Redirigiendo a dashboard de cliente');
-            return '/client/dashboard';
-          }
+          final redirectRoute = await _getRedirectRoute(auth, nestJS);
+          print('🔍 Redirigiendo a: $redirectRoute');
+          return redirectRoute;
         }
         
         return null;
@@ -211,12 +197,12 @@ class AppRouter {
         }
         // Si no hay nombre, usar el ID para determinar el rol
         final roleId = role['id'];
-        if (roleId == 3) return 'worker';
-        if (roleId == 2) return 'user';
-        if (roleId == 1) return 'admin';
-        if (roleId == 4) return 'super_admin';
+        if (roleId == 3) return 'Worker';
+        if (roleId == 2) return 'User';
+        if (roleId == 1) return 'Admin';
+        if (roleId == 4) return 'Super_Admin';
       }
-      return 'user';
+      return 'User';
     }
     
     // Fallback a Firebase Auth
@@ -224,7 +210,50 @@ class AppRouter {
       return auth.currentUser!.role;
     }
     
-    return 'user';
+    return 'User';
+  }
+
+  // Función para determinar la ruta de redirección basada en el rol y estado del usuario
+  static Future<String> _getRedirectRoute(
+    AuthProvider auth,
+    NestJSProvider nestJS,
+  ) async {
+    final userRole = _getUserRole(auth, nestJS);
+    print('🔍 Rol detectado por nombre: $userRole');
+
+    if (userRole == 'Worker') {
+      print('🔍 Usuario es trabajador, verificando estado...');
+      
+      // Primero verificar si tiene servicios configurados (más confiable)
+      final hasServices = await nestJS.hasWorkerServices();
+      print('🔍 Tiene servicios: $hasServices');
+      
+      if (hasServices) {
+        print('🔍 Tiene servicios configurados, redirigiendo a dashboard');
+        return '/worker/dashboard';
+      }
+      
+      // Si no tiene servicios, verificar si tiene perfil completo
+      final hasProfile = await nestJS.hasWorkerProfile();
+      print('🔍 Tiene perfil completo: $hasProfile');
+      
+      if (hasProfile) {
+        print('🔍 Tiene perfil pero no servicios, redirigiendo a configurar servicios');
+        return '/configure-worker-services';
+      } else {
+        print('🔍 No tiene perfil completo, redirigiendo a completar perfil');
+        return '/complete-worker-profile';
+      }
+    } else if (userRole == 'User') {
+      print('🔍 Redirigiendo a dashboard de cliente');
+      return '/client/dashboard';
+    } else if (userRole == 'Admin' || userRole == 'Super_Admin') {
+      print('🔍 Redirigiendo a dashboard de administrador');
+      return '/admin/dashboard';
+    } else {
+      print('🔍 Rol no reconocido, redirigiendo a dashboard de cliente');
+      return '/client/dashboard';
+    }
   }
 }
 

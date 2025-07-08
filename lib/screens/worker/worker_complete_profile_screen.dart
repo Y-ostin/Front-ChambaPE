@@ -26,6 +26,10 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
   File? _dniFrontal;
   File? _dniPosterior;
   File? _certificatePdf;
+  
+  // Documentos existentes del trabajador
+  Map<String, dynamic>? _existingDocuments;
+  bool _hasExistingDocuments = false;
 
   // Servicios seleccionados
   final List<int> _selectedServices = [];
@@ -44,6 +48,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
   void initState() {
     super.initState();
     _checkConnection();
+    _loadExistingProfile();
   }
 
   Future<void> _checkConnection() async {
@@ -56,12 +61,49 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
     }
   }
 
+  Future<void> _loadExistingProfile() async {
+    try {
+      final nestJSProvider = context.read<NestJSProvider>();
+      final profile = await nestJSProvider.getWorkerProfile();
+      
+      if (mounted && profile != null) {
+        setState(() {
+          _existingDocuments = profile;
+          
+          // Verificar si tiene documentos existentes
+          final hasDniFrontal = profile['dniFrontalUrl'] != null && profile['dniFrontalUrl'].toString().isNotEmpty;
+          final hasDniPosterior = profile['dniPosteriorUrl'] != null && profile['dniPosteriorUrl'].toString().isNotEmpty;
+          final hasCertificatePdf = profile['certificatePdfUrl'] != null && profile['certificatePdfUrl'].toString().isNotEmpty;
+          
+          _hasExistingDocuments = hasDniFrontal && hasDniPosterior && hasCertificatePdf;
+          
+          // Si tiene documentos existentes, llenar los campos
+          if (_hasExistingDocuments) {
+            _dniController.text = profile['dniNumber'] ?? '';
+            _descriptionController.text = profile['description'] ?? '';
+          }
+        });
+        
+        print('🔍 Perfil cargado: $_existingDocuments');
+        print('🔍 Tiene documentos existentes: $_hasExistingDocuments');
+      }
+    } catch (e) {
+      print('❌ Error cargando perfil existente: $e');
+    }
+  }
+
   void _nextStep() {
     if (_currentStep < 2) {
       setState(() {
         _currentStep++;
       });
     }
+  }
+
+  void _skipToServices() {
+    setState(() {
+      _currentStep = 1; // Saltar al paso de servicios
+    });
   }
 
   void _previousStep() {
@@ -89,34 +131,40 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
     try {
       final nestJSProvider = context.read<NestJSProvider>();
 
-      // Validar documentos
-      if (_dniFrontal == null || _dniPosterior == null || _certificatePdf == null) {
-        throw Exception('Debe subir todos los documentos requeridos');
-      }
+      // Si ya tiene documentos existentes, solo actualizar servicios
+      if (_hasExistingDocuments) {
+        print('🔍 Ya tiene documentos, solo actualizando servicios...');
+        await _updateWorkerServices(nestJSProvider);
+      } else {
+        // Validar documentos nuevos
+        if (_dniFrontal == null || _dniPosterior == null || _certificatePdf == null) {
+          throw Exception('Debe subir todos los documentos requeridos');
+        }
 
-      // Validar con el backend
-      final result = await ValidateService.validateCertUnico(
-        dni: _dniController.text.trim(),
-        dniFrontal: _dniFrontal!,
-        dniPosterior: _dniPosterior!,
-        certUnico: _certificatePdf!,
-      );
-      
-      if (result == null) {
-        throw Exception('No se pudo conectar con el servidor');
-      }
-      
-      final valido = result['valido'] ?? false;
-      final antecedentes = result['antecedentes'] ?? [];
-      
-      if (valido == false && antecedentes.isNotEmpty) {
-        throw Exception('TIENE ANTECEDENTES, NO PUEDE USAR LA APP');
-      } else if (valido == false) {
-        throw Exception('LOS DATOS NO COINCIDEN');
-      }
+        // Validar con el backend
+        final result = await ValidateService.validateCertUnico(
+          dni: _dniController.text.trim(),
+          dniFrontal: _dniFrontal!,
+          dniPosterior: _dniPosterior!,
+          certUnico: _certificatePdf!,
+        );
+        
+        if (result == null) {
+          throw Exception('No se pudo conectar con el servidor');
+        }
+        
+        final valido = result['valido'] ?? false;
+        final antecedentes = result['antecedentes'] ?? [];
+        
+        if (valido == false && antecedentes.isNotEmpty) {
+          throw Exception('TIENE ANTECEDENTES, NO PUEDE USAR LA APP');
+        } else if (valido == false) {
+          throw Exception('LOS DATOS NO COINCIDEN');
+        }
 
-      // Registrar trabajador
-      await _registerWorker(nestJSProvider);
+        // Registrar trabajador con documentos nuevos
+        await _registerWorker(nestJSProvider);
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -174,6 +222,18 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
     };
     
     await nestJSProvider.registerWorker(workerData);
+  }
+
+  Future<void> _updateWorkerServices(NestJSProvider nestJSProvider) async {
+    // Solo actualizar servicios del trabajador
+    final serviceData = {
+      'serviceCategories': _selectedServices,
+      'description': _descriptionController.text.trim().isNotEmpty 
+        ? _descriptionController.text.trim() 
+        : 'Trabajador registrado en ChambaPE',
+    };
+    
+    await nestJSProvider.configureWorkerServices(serviceData);
   }
 
   Widget _buildStepIndicator() {
@@ -240,14 +300,44 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Sube los documentos necesarios para validar tu identidad',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
+        
+        // Si ya tiene documentos, mostrar mensaje diferente
+        if (_hasExistingDocuments) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '✅ Ya tienes todos los documentos subidos y verificados',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
+          const SizedBox(height: 24),
+        ] else ...[
+          const Text(
+            'Sube los documentos necesarios para validar tu identidad',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         
         // DNI Number
         TextFormField(
@@ -269,30 +359,156 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
         ),
         const SizedBox(height: 24),
         
-        // Document upload section
-        _buildDocumentUpload(
-          'DNI Frontal',
-          _dniFrontal,
-          (file) => setState(() => _dniFrontal = file),
-          Icons.camera_alt,
+        // Si ya tiene documentos, mostrar resumen
+        if (_hasExistingDocuments) ...[
+          _buildExistingDocumentsSummary(),
+        ] else ...[
+          // Document upload section
+          _buildDocumentUpload(
+            'DNI Frontal',
+            _dniFrontal,
+            (file) => setState(() => _dniFrontal = file),
+            Icons.camera_alt,
+          ),
+          const SizedBox(height: 16),
+          
+          _buildDocumentUpload(
+            'DNI Posterior',
+            _dniPosterior,
+            (file) => setState(() => _dniPosterior = file),
+            Icons.camera_alt,
+          ),
+          const SizedBox(height: 16),
+          
+          _buildDocumentUpload(
+            'Certificado Único Laboral',
+            _certificatePdf,
+            (file) => setState(() => _certificatePdf = file),
+            Icons.description,
+            isPdf: true,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildExistingDocumentsSummary() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Documentos Subidos:',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // DNI Frontal
+          _buildDocumentItem(
+            'DNI Frontal',
+            Icons.camera_alt,
+            _existingDocuments?['dniFrontalUrl'] != null,
+          ),
+          const SizedBox(height: 8),
+          
+          // DNI Posterior
+          _buildDocumentItem(
+            'DNI Posterior',
+            Icons.camera_alt,
+            _existingDocuments?['dniPosteriorUrl'] != null,
+          ),
+          const SizedBox(height: 8),
+          
+          // Certificado PDF
+          _buildDocumentItem(
+            'Certificado Único Laboral',
+            Icons.description,
+            _existingDocuments?['certificatePdfUrl'] != null,
+          ),
+          
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Puedes continuar con la configuración de servicios',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _skipToServices,
+              icon: const Icon(Icons.arrow_forward),
+              label: const Text('Continuar con Servicios'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentItem(String title, IconData icon, bool hasDocument) {
+    return Row(
+      children: [
+        Icon(
+          hasDocument ? Icons.check_circle : Icons.cancel,
+          color: hasDocument ? Colors.green : Colors.red,
+          size: 20,
         ),
-        const SizedBox(height: 16),
-        
-        _buildDocumentUpload(
-          'DNI Posterior',
-          _dniPosterior,
-          (file) => setState(() => _dniPosterior = file),
-          Icons.camera_alt,
+        const SizedBox(width: 12),
+        Icon(icon, color: Colors.grey.shade600, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey.shade700,
+          ),
         ),
-        const SizedBox(height: 16),
-        
-        _buildDocumentUpload(
-          'Certificado Único Laboral',
-          _certificatePdf,
-          (file) => setState(() => _certificatePdf = file),
-          Icons.description,
-          isPdf: true,
-        ),
+        const Spacer(),
+        if (hasDocument)
+          Text(
+            'Subido',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.green,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
       ],
     );
   }
