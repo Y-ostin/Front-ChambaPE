@@ -43,13 +43,13 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                _status, 
+                _status,
                 style: const TextStyle(fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Campos de entrada
             TextField(
               controller: _emailController,
@@ -60,7 +60,7 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            
+
             TextField(
               controller: _passwordController,
               decoration: const InputDecoration(
@@ -71,38 +71,41 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
               obscureText: true,
             ),
             const SizedBox(height: 20),
-            
+
             // Estado de autenticación
             Consumer<AuthProvider>(
               builder: (context, authProvider, child) {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: authProvider.isAuthenticated 
-                      ? Colors.green.shade100 
-                      : Colors.orange.shade100,
+                    color:
+                        authProvider.isAuthenticated
+                            ? Colors.green.shade100
+                            : Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        authProvider.isAuthenticated 
-                          ? Icons.check_circle 
-                          : Icons.warning,
-                        color: authProvider.isAuthenticated 
-                          ? Colors.green 
-                          : Colors.orange,
+                        authProvider.isAuthenticated
+                            ? Icons.check_circle
+                            : Icons.warning,
+                        color:
+                            authProvider.isAuthenticated
+                                ? Colors.green
+                                : Colors.orange,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           authProvider.isAuthenticated
-                            ? 'Autenticado: ${authProvider.currentUser?.email ?? ""}'
-                            : 'No autenticado',
+                              ? 'Autenticado: ${authProvider.currentUser?.email ?? ""}'
+                              : 'No autenticado',
                           style: TextStyle(
-                            color: authProvider.isAuthenticated 
-                              ? Colors.green.shade700 
-                              : Colors.orange.shade700,
+                            color:
+                                authProvider.isAuthenticated
+                                    ? Colors.green.shade700
+                                    : Colors.orange.shade700,
                           ),
                         ),
                       ),
@@ -112,7 +115,7 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
               },
             ),
             const SizedBox(height: 20),
-            
+
             // Botones de testing
             if (_loading)
               const CircularProgressIndicator()
@@ -122,12 +125,21 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
                   children: [
                     _buildTestButton('🔗 Test Conexión', _testConnection),
                     _buildTestButton('📝 Crear Usuario Demo', _createDemoUser),
-                    _buildTestButton('🔐 Login con AuthProvider', _testLoginProvider),
+                    _buildTestButton(
+                      '🔐 Login con AuthProvider',
+                      _testLoginProvider,
+                    ),
                     _buildTestButton('🔓 Login Directo API', _testLoginDirect),
                     _buildTestButton('👤 Mi Perfil', _testProfile),
                     _buildTestButton('📋 Categorías', _testCategories),
-                    _buildTestButton('👷 Trabajadores Cercanos', _testNearbyWorkers),
-                    _buildTestButton('📍 Registrar Trabajador', _testWorkerRegister),
+                    _buildTestButton(
+                      '👷 Trabajadores Cercanos',
+                      _testNearbyWorkers,
+                    ),
+                    _buildTestButton(
+                      '📍 Registrar Trabajador',
+                      _testWorkerRegister,
+                    ),
                     _buildTestButton('💼 Crear Trabajo', _testCreateJob),
                     _buildTestButton('📋 Mis Trabajos', _testMyJobs),
                     _buildTestButton('🚪 Logout', _testLogout),
@@ -161,12 +173,13 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
 
     final isConnected = await ApiService.checkConnection();
-    
+
     setState(() {
       _loading = false;
-      _status = isConnected 
-        ? '✅ Conexión exitosa con el backend'
-        : '❌ Error de conexión. Verifica que el backend esté corriendo en puerto 3000';
+      _status =
+          isConnected
+              ? '✅ Conexión exitosa con el backend'
+              : '❌ Error de conexión. Verifica que el backend esté corriendo en puerto 3000';
     });
   }
 
@@ -185,19 +198,22 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
 
     setState(() {
       _loading = false;
-      _status = result['success'] 
-        ? '✅ Usuario demo creado exitosamente.\n📧 Email: demo@chambaipe.com\n🔑 Password: secret123\n⚠️ Verifica el email en MailDev (http://localhost:1080)'
-        : '❌ Error al crear usuario: ${result['message']}';
+      _status =
+          result['success']
+              ? '✅ Usuario demo creado exitosamente.\n📧 Email: demo@chambaipe.com\n🔑 Password: secret123\n⚠️ Verifica el email en MailDev (http://localhost:1080)'
+              : '❌ Error al crear usuario: ${result['message']}';
     });
   }
 
   Future<void> _testLoginProvider() async {
-    final email = _emailController.text.isNotEmpty 
-      ? _emailController.text 
-      : 'demo@chambaipe.com';
-    final password = _passwordController.text.isNotEmpty 
-      ? _passwordController.text 
-      : 'secret123';
+    final email =
+        _emailController.text.isNotEmpty
+            ? _emailController.text
+            : 'demo@chambaipe.com';
+    final password =
+        _passwordController.text.isNotEmpty
+            ? _passwordController.text
+            : 'secret123';
 
     setState(() {
       _loading = true;
@@ -205,7 +221,7 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
 
     try {
-      await context.read<AuthProvider>().login(email, password);
+      await context.read<AuthProvider>().login(email, password, context);
       setState(() {
         _status = '✅ Login exitoso con AuthProvider. Usuario autenticado.';
       });
@@ -219,12 +235,14 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
   }
 
   Future<void> _testLoginDirect() async {
-    final email = _emailController.text.isNotEmpty 
-      ? _emailController.text 
-      : 'demo@chambaipe.com';
-    final password = _passwordController.text.isNotEmpty 
-      ? _passwordController.text 
-      : 'secret123';
+    final email =
+        _emailController.text.isNotEmpty
+            ? _emailController.text
+            : 'demo@chambaipe.com';
+    final password =
+        _passwordController.text.isNotEmpty
+            ? _passwordController.text
+            : 'secret123';
 
     setState(() {
       _loading = true;
@@ -235,9 +253,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
 
     setState(() {
       _loading = false;
-      _status = result['success'] 
-        ? '✅ Login directo exitoso. Token guardado en ApiService.'
-        : '❌ Error en login directo: ${result['message']}';
+      _status =
+          result['success']
+              ? '✅ Login directo exitoso. Token guardado en ApiService.'
+              : '❌ Error en login directo: ${result['message']}';
     });
   }
 
@@ -251,9 +270,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
 
     setState(() {
       _loading = false;
-      _status = result['success'] 
-        ? '✅ Perfil obtenido:\n📧 Email: ${result['data']['email']}\n👤 Nombre: ${result['data']['firstName']} ${result['data']['lastName']}\n🎭 Rol: ${result['data']['role']['name']}'
-        : '❌ Error al obtener perfil: ${result['message']}';
+      _status =
+          result['success']
+              ? '✅ Perfil obtenido:\n📧 Email: ${result['data']['email']}\n👤 Nombre: ${result['data']['firstName']} ${result['data']['lastName']}\n🎭 Rol: ${result['data']['role']['name']}'
+              : '❌ Error al obtener perfil: ${result['message']}';
     });
   }
 
@@ -267,9 +287,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
 
     setState(() {
       _loading = false;
-      _status = categories.isNotEmpty 
-        ? '✅ ${categories.length} categorías obtenidas:\n${categories.map((cat) => '• ${cat['name']}').join('\n')}'
-        : '❌ No se pudieron obtener categorías';
+      _status =
+          categories.isNotEmpty
+              ? '✅ ${categories.length} categorías obtenidas:\n${categories.map((cat) => '• ${cat['name']}').join('\n')}'
+              : '❌ No se pudieron obtener categorías';
     });
   }
 
@@ -287,7 +308,8 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
 
     setState(() {
       _loading = false;
-      _status = '✅ ${workers.length} trabajadores encontrados cerca de Lima, Perú';
+      _status =
+          '✅ ${workers.length} trabajadores encontrados cerca de Lima, Perú';
     });
   }
 
@@ -308,9 +330,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
 
     setState(() {
       _loading = false;
-      _status = result['success'] 
-        ? '✅ Perfil de trabajador registrado exitosamente'
-        : '❌ Error al registrar trabajador: ${result['message']}';
+      _status =
+          result['success']
+              ? '✅ Perfil de trabajador registrado exitosamente'
+              : '❌ Error al registrar trabajador: ${result['message']}';
     });
   }
 
@@ -332,9 +355,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
 
     setState(() {
       _loading = false;
-      _status = result['success'] 
-        ? '✅ Trabajo creado exitosamente'
-        : '❌ Error al crear trabajo: ${result['message']}';
+      _status =
+          result['success']
+              ? '✅ Trabajo creado exitosamente'
+              : '❌ Error al crear trabajo: ${result['message']}';
     });
   }
 
@@ -359,7 +383,7 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
 
     try {
-      await context.read<AuthProvider>().logout();
+      await context.read<AuthProvider>().logout(context);
       setState(() {
         _status = '✅ Sesión cerrada exitosamente';
       });

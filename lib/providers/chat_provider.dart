@@ -10,7 +10,7 @@ class ChatProvider extends ChangeNotifier {
   List<ChatMessage> _messages = [];
   bool _isLoading = false;
   String? _currentConversationId;
-  Map<String, bool> _typingStatus = {};
+  final Map<String, bool> _typingStatus = {};
   StreamSubscription<QuerySnapshot>? _messagesSubscription;
   StreamSubscription<QuerySnapshot>? _conversationsSubscription;
 
@@ -275,6 +275,7 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // Limpiar recursos
+  @override
   void dispose() {
     _messagesSubscription?.cancel();
     _conversationsSubscription?.cancel();

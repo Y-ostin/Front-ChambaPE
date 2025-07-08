@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 class FeaturedWorkersSection extends StatelessWidget {
   final List<Map<String, dynamic>> workers;
 
-  const FeaturedWorkersSection({Key? key, required this.workers})
-    : super(key: key);
+  const FeaturedWorkersSection({super.key, required this.workers});
 
   @override
   Widget build(BuildContext context) {

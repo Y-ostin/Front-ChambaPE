@@ -8,6 +8,7 @@ import '../../providers/chat_provider.dart';
 import '../../widgets/featured_workers_section.dart';
 import '../../widgets/promotional_banner.dart';
 import '../../widgets/recent_services_section.dart';
+import '../../providers/nestjs_provider.dart';
 
 class HomeClientScreen extends StatefulWidget {
   const HomeClientScreen({super.key});
@@ -278,7 +279,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -428,7 +429,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
           Container(
             height: 48,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
@@ -870,7 +871,8 @@ class _HomeClientScreenState extends State<HomeClientScreen>
                     height: 32,
                     width: 32,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -938,7 +940,7 @@ class _HomeClientScreenState extends State<HomeClientScreen>
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -1421,11 +1423,12 @@ class _HomeClientScreenState extends State<HomeClientScreen>
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext parentContext) {
+    print('👉 Se abrió _showLogoutDialog (CLIENT)');
     showDialog(
-      context: context,
+      context: parentContext,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -1433,49 +1436,53 @@ class _HomeClientScreenState extends State<HomeClientScreen>
               'Cerrar Sesión',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: Theme.of(parentContext).colorScheme.onSurface,
               ),
             ),
             content: Text(
               '¿Estás seguro de que deseas cerrar sesión?',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                color: Theme.of(
+                  parentContext,
+                ).colorScheme.onSurface.withOpacity(0.8),
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: Text(
                   'Cancelar',
                   style: TextStyle(
                     color: Theme.of(
-                      context,
+                      parentContext,
                     ).colorScheme.onSurface.withOpacity(0.6),
                   ),
                 ),
               ),
               ElevatedButton(
                 onPressed: () async {
-                  Navigator.pop(context); // Cierra el diálogo
+                  print('👉 Botón cerrar sesión PRESIONADO (CLIENT)');
+                  Navigator.pop(dialogContext); // Cierra el diálogo
 
                   try {
-                    // Hace logout del AuthProvider
-                    await context.read<AuthProvider>().logout();
+                    await parentContext.read<AuthProvider>().logout(
+                      parentContext,
+                    );
 
                     // Navega a la pantalla de login
-                    if (context.mounted) {
-                      context.go('/');
+                    if (parentContext.mounted) {
+                      parentContext.go('/login');
                     }
                   } catch (e) {
                     // En caso de error, navega de todas formas
-                    if (context.mounted) {
-                      context.go('/');
+                    if (parentContext.mounted) {
+                      parentContext.go('/login');
                     }
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
+                  backgroundColor: Theme.of(parentContext).colorScheme.error,
+                  foregroundColor: Theme.of(parentContext).colorScheme.onError,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class RecentServicesSection extends StatelessWidget {
-  const RecentServicesSection({Key? key}) : super(key: key);
+  const RecentServicesSection({super.key});
 
   @override
   Widget build(BuildContext context) {
