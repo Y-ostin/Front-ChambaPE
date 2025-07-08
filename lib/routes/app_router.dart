@@ -7,21 +7,19 @@ import '../screens/chat/chat_list_screen.dart';
 import '../screens/chat/chat_detail_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/nestjs_provider.dart';
-import '../screens/login/login_screen.dart';
-import '../screens/register/register_screen.dart';
 import '../screens/auth/login_screen_new.dart';
 import '../screens/auth/register_screen_new.dart';
-import '../screens/home_client/home_client_screen.dart';
-import '../screens/home_worker/home_worker_screen.dart';
+import '../screens/home_client/map_home_client_screen.dart';
 import '../screens/profile/worker_profile_screen.dart';
 import '../screens/profile/history/worker_history_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/auth/email_verification_screen.dart';
 import '../screens/auth/complete_worker_registration_screen.dart';
-import '../screens/auth/complete_worker_profile_screen.dart';
 import '../screens/worker/worker_availability_screen.dart';
 import '../screens/worker/worker_complete_profile_screen.dart';
 import '../screens/worker/worker_dashboard_screen.dart';
+import '../screens/worker/worker_offers_screen.dart';
+import '../screens/profile/client_profile_screen.dart';
 
 class AppRouter {
   static GoRouter router(BuildContext context) {
@@ -30,25 +28,26 @@ class AppRouter {
       refreshListenable: context.read<AuthProvider>(),
       routes: [
         // Rutas de autenticación
+        GoRoute(path: '/login', builder: (_, __) => const LoginScreenNew()),
         GoRoute(
-          path: '/login', 
-          builder: (_, __) => const LoginScreenNew(),
-        ),
-        GoRoute(
-          path: '/register', 
+          path: '/register',
           builder: (_, __) => const RegisterScreenNew(),
         ),
-        
+
         // Rutas de dashboard
         GoRoute(
           path: '/client/dashboard',
-          builder: (_, __) => const HomeClientScreen(),
+          builder: (_, __) => const MapHomeClientScreen(),
+        ),
+        GoRoute(
+          path: '/client/profile',
+          builder: (_, __) => const ClientProfileScreen(),
         ),
         GoRoute(
           path: '/worker/dashboard',
           builder: (_, __) => const WorkerDashboardScreen(),
         ),
-        
+
         // Rutas de perfil
         GoRoute(
           path: '/worker/profile',
@@ -58,15 +57,16 @@ class AppRouter {
           path: '/worker/history',
           builder: (_, __) => const WorkerHistoryScreen(),
         ),
-        
+
         // Rutas de chat
-        GoRoute(
-          path: '/chats', 
-          builder: (_, __) => const ChatListScreen(),
-        ),
+        GoRoute(path: '/chats', builder: (_, __) => const ChatListScreen()),
         GoRoute(
           path: '/worker/chats',
           builder: (_, __) => const ChatListWorkerScreen(),
+        ),
+        GoRoute(
+          path: '/worker/offers',
+          builder: (_, __) => const WorkerOffersScreen(),
         ),
         GoRoute(
           path: '/chat/detail',
@@ -79,13 +79,10 @@ class AppRouter {
             );
           },
         ),
-        
+
         // Rutas de configuración
-        GoRoute(
-          path: '/settings', 
-          builder: (_, __) => const SettingsScreen(),
-        ),
-        
+        GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+
         // Rutas de verificación
         GoRoute(
           path: '/email-verification',
@@ -109,32 +106,14 @@ class AppRouter {
           path: '/worker/verification',
           builder: (_, __) => const WorkerVerificationScreen(),
         ),
-        
+
         // Rutas legacy para compatibilidad
-        GoRoute(
-          path: '/', 
-          redirect: (_, __) => '/login',
-        ),
-        GoRoute(
-          path: '/homeClient',
-          redirect: (_, __) => '/client/dashboard',
-        ),
-        GoRoute(
-          path: '/homeWorker',
-          redirect: (_, __) => '/worker/dashboard',
-        ),
-        GoRoute(
-          path: '/workerProfile',
-          redirect: (_, __) => '/worker/profile',
-        ),
-        GoRoute(
-          path: '/workerHistory',
-          redirect: (_, __) => '/worker/history',
-        ),
-        GoRoute(
-          path: '/workerChats',
-          redirect: (_, __) => '/worker/chats',
-        ),
+        GoRoute(path: '/', redirect: (_, __) => '/login'),
+        GoRoute(path: '/homeClient', redirect: (_, __) => '/client/dashboard'),
+        GoRoute(path: '/homeWorker', redirect: (_, __) => '/worker/dashboard'),
+        GoRoute(path: '/workerProfile', redirect: (_, __) => '/worker/profile'),
+        GoRoute(path: '/workerHistory', redirect: (_, __) => '/worker/history'),
+        GoRoute(path: '/workerChats', redirect: (_, __) => '/worker/chats'),
         GoRoute(
           path: '/worker/availability',
           builder: (_, __) => const WorkerAvailabilityScreen(),
@@ -144,7 +123,7 @@ class AppRouter {
         final auth = context.read<AuthProvider>();
         final nestJS = context.read<NestJSProvider>();
         final isAuth = auth.isAuthenticated || nestJS.isAuthenticated;
-        
+
         // Rutas públicas que no requieren autenticación
         final publicRoutes = [
           '/login',
@@ -152,14 +131,14 @@ class AppRouter {
           '/email-verification',
           '/worker/verification',
         ];
-        
+
         final isPublicRoute = publicRoutes.contains(state.fullPath);
 
         // Si no está autenticado y no está en una ruta pública, redirigir a login
         if (!isAuth && !isPublicRoute) {
           return '/login';
         }
-        
+
         // Si está autenticado y está en una ruta pública, redirigir según el rol
         if (isAuth && isPublicRoute) {
           final userRole = _getUserRole(auth, nestJS);
@@ -169,7 +148,7 @@ class AppRouter {
           if (nestJS.currentUser != null) {
             print('🔍 Usuario NestJS: ${nestJS.currentUser}');
           }
-          
+
           if (userRole == 'worker') {
             print('🔍 Usuario es trabajador, verificando perfil completo...');
             // Verificar si el trabajador tiene perfil completo
@@ -193,12 +172,12 @@ class AppRouter {
             return '/client/dashboard';
           }
         }
-        
+
         return null;
       },
     );
   }
-  
+
   // Determinar el rol del usuario
   static String _getUserRole(AuthProvider auth, NestJSProvider nestJS) {
     // Priorizar NestJS si está autenticado
@@ -218,12 +197,12 @@ class AppRouter {
       }
       return 'user';
     }
-    
+
     // Fallback a Firebase Auth
     if (auth.isAuthenticated && auth.currentUser != null) {
       return auth.currentUser!.role;
     }
-    
+
     return 'user';
   }
 }
@@ -235,18 +214,12 @@ class WorkerVerificationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verificación de Cuenta'),
-      ),
+      appBar: AppBar(title: const Text('Verificación de Cuenta')),
       body: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.verified_user,
-              size: 80,
-              color: Colors.orange,
-            ),
+            Icon(Icons.verified_user, size: 80, color: Colors.orange),
             SizedBox(height: 16),
             Text(
               'Cuenta en Verificación',

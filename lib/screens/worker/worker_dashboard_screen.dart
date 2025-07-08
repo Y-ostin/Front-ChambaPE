@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/nestjs_provider.dart';
 
@@ -113,21 +112,20 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
       final nestJSProvider = context.read<NestJSProvider>();
       // await nestJSProvider.toggleWorkerAvailability();
       setState(() => _isActiveToday = !_isActiveToday);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isActiveToday 
-            ? '✅ Ahora estás disponible para recibir trabajos'
-            : '⏸️ Has pausado la recepción de trabajos'),
+          content: Text(
+            _isActiveToday
+                ? '✅ Ahora estás disponible para recibir trabajos'
+                : '⏸️ Has pausado la recepción de trabajos',
+          ),
           backgroundColor: _isActiveToday ? Colors.green : Colors.orange,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -138,24 +136,21 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
     try {
       final nestJSProvider = context.read<NestJSProvider>();
       // await nestJSProvider.acceptJob(jobId);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Trabajo aceptado exitosamente'),
           backgroundColor: Colors.green,
         ),
       );
-      
+
       // Remover el trabajo de la lista
       setState(() {
         _availableJobs.removeWhere((job) => job['id'] == jobId);
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -164,24 +159,21 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
     try {
       final nestJSProvider = context.read<NestJSProvider>();
       // await nestJSProvider.rejectJob(jobId);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('❌ Trabajo rechazado'),
           backgroundColor: Colors.orange,
         ),
       );
-      
+
       // Remover el trabajo de la lista
       setState(() {
         _availableJobs.removeWhere((job) => job['id'] == jobId);
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -223,10 +215,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
                     ),
                     const Text(
                       '¿Listo para trabajar?',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -242,7 +231,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
               ],
             ),
             const SizedBox(height: 20),
-            
+
             // Toggle de disponibilidad
             Container(
               padding: const EdgeInsets.all(16),
@@ -271,9 +260,9 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
                           ),
                         ),
                         Text(
-                          _isActiveToday 
-                            ? 'Recibiendo ofertas de trabajo'
-                            : 'No recibirás ofertas',
+                          _isActiveToday
+                              ? 'Recibiendo ofertas de trabajo'
+                              : 'No recibirás ofertas',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.white70,
@@ -284,7 +273,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
                   ),
                   Switch(
                     value: _isActiveToday,
-                    onChanged: _isLoading ? null : (value) => _toggleActiveToday(),
+                    onChanged:
+                        _isLoading ? null : (value) => _toggleActiveToday(),
                     activeColor: Colors.white,
                     activeTrackColor: Colors.white.withOpacity(0.3),
                   ),
@@ -305,10 +295,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
         children: [
           const Text(
             'Estadísticas',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Row(
@@ -359,7 +346,12 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -383,10 +375,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
           Text(
             title,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -404,47 +393,31 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
             children: [
               const Text(
                 'Trabajos Disponibles',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
                 '${_availableJobs.length} disponibles',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           if (_availableJobs.isEmpty)
             Container(
               padding: const EdgeInsets.all(32),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.work_off,
-                    size: 64,
-                    color: Colors.grey.shade400,
-                  ),
+                  Icon(Icons.work_off, size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
                   Text(
                     'No hay trabajos disponibles',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Activa tu disponibilidad para recibir ofertas',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                   ),
                 ],
               ),
@@ -467,7 +440,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
   Widget _buildJobCard(Map<String, dynamic> job) {
     final urgencyColor = _getUrgencyColor(job['urgency']);
     final timeLeft = job['expiresAt'].difference(DateTime.now());
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -524,13 +497,10 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
                 const SizedBox(height: 8),
                 Text(
                   job['description'],
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 12),
-                
+
                 Row(
                   children: [
                     Icon(Icons.location_on, size: 16, color: Colors.grey),
@@ -547,7 +517,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 Row(
                   children: [
                     Icon(Icons.straighten, size: 16, color: Colors.grey),
@@ -571,7 +541,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
                     ),
                   ],
                 ),
-                
+
                 if (timeLeft.isNegative)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
@@ -615,7 +585,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
               ],
             ),
           ),
-          
+
           if (!timeLeft.isNegative)
             Container(
               padding: const EdgeInsets.all(16),
@@ -681,19 +651,20 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
           child: Column(
             children: [
               _buildHeader(),
-              
+
               Expanded(
-                child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildStatsSection(),
-                          _buildAvailableJobsSection(),
-                          const SizedBox(height: 100), // Espacio para FAB
-                        ],
-                      ),
-                    ),
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              _buildStatsSection(),
+                              _buildAvailableJobsSection(),
+                              const SizedBox(height: 100), // Espacio para FAB
+                            ],
+                          ),
+                        ),
               ),
             ],
           ),
@@ -706,4 +677,4 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
       ),
     );
   }
-} 
+}

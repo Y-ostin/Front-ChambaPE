@@ -10,11 +10,11 @@ class StartChatButton extends StatefulWidget {
   final String? serviceType;
 
   const StartChatButton({
-    Key? key,
+    super.key,
     required this.workerId,
     required this.workerName,
     this.serviceType,
-  }) : super(key: key);
+  });
 
   @override
   State<StartChatButton> createState() => _StartChatButtonState();

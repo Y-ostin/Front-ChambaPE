@@ -13,9 +13,9 @@ class DeepLinkService {
 
   static void initialize(BuildContext context) {
     if (_isInitialized) return;
-    
+
     _isInitialized = true;
-    
+
     // Manejar links iniciales
     _appLinks.getInitialAppLink().then((Uri? uri) {
       if (uri != null) {
@@ -24,21 +24,24 @@ class DeepLinkService {
     });
 
     // Manejar links cuando la app está abierta
-    _subscription = _appLinks.uriLinkStream.listen((Uri? uri) {
-      if (uri != null) {
-        _handleLink(uri.toString(), context);
-      }
-    }, onError: (err) {
-      print('Error en deep link: $err');
-    });
+    _subscription = _appLinks.uriLinkStream.listen(
+      (Uri? uri) {
+        if (uri != null) {
+          _handleLink(uri.toString(), context);
+        }
+      },
+      onError: (err) {
+        print('Error en deep link: $err');
+      },
+    );
   }
 
   static void _handleLink(String link, BuildContext context) {
     print('🔗 Deep link recibido: $link');
-    
+
     try {
       final uri = Uri.parse(link);
-      
+
       if (uri.scheme == 'chambape' && uri.host == 'email-verification') {
         final hash = uri.queryParameters['hash'];
         if (hash != null) {
@@ -50,29 +53,27 @@ class DeepLinkService {
     }
   }
 
-    static Future<void> _handleEmailVerification(String hash, BuildContext context) async {
+  static Future<void> _handleEmailVerification(
+    String hash,
+    BuildContext context,
+  ) async {
     try {
       print('🔐 Procesando verificación de email con hash: $hash');
-      
+
       final nestJSProvider = context.read<NestJSProvider>();
-      
+
       // Confirmar email usando el endpoint GET que funciona
       final success = await nestJSProvider.confirmEmailGet(hash);
-      
+
       if (success) {
         print('✅ Email verificado exitosamente');
-        
+
         // Después de verificar el email, redirigir al login
         // El usuario podrá completar su perfil de trabajador después del login
         if (context.mounted) {
           try {
             // Usar GoRouter de forma segura
-            if (GoRouter.of(context) != null) {
-              GoRouter.of(context).go('/login');
-            } else {
-              // Fallback: usar Navigator si GoRouter no está disponible
-              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-            }
+            GoRouter.of(context).go('/login');
           } catch (e) {
             print('⚠️ Error al redirigir después de verificación: $e');
           }
@@ -89,4 +90,4 @@ class DeepLinkService {
     _subscription?.cancel();
     _isInitialized = false;
   }
-} 
+}

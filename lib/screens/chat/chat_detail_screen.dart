@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
-import '../../models/chat_message.dart';
 import '../../widgets/chat_message_widget.dart';
 import '../../widgets/chat_input_widget.dart';
 import 'dart:async';

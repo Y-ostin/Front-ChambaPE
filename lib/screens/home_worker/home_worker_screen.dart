@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/nestjs_provider.dart';
 
 class HomeWorkerScreen extends StatefulWidget {
   const HomeWorkerScreen({super.key});
@@ -786,39 +787,48 @@ class _HomeWorkerScreenState extends State<HomeWorkerScreen>
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  void _showLogoutDialog(BuildContext parentContext) {
+    final colorScheme = Theme.of(parentContext).colorScheme;
+
+    print('👉 Se abrió _showLogoutDialog (WORKER)');
 
     showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          icon: Icon(Icons.logout_rounded, color: colorScheme.error, size: 28),
-          title: const Text(
-            'Cerrar Sesión',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
+      context: parentContext,
+      builder:
+          (dialogContext) => AlertDialog(
+            icon: Icon(
+              Icons.logout_rounded,
+              color: colorScheme.error,
+              size: 28,
             ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.read<AuthProvider>().logout();
-                context.go('/');
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: colorScheme.error,
-                foregroundColor: colorScheme.onError,
+            title: const Text(
+              'Cerrar Sesión',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
               ),
-              child: const Text('Cerrar Sesión'),
-            ),
-          ],
-        );
-      },
+              FilledButton(
+                onPressed: () async {
+                  print('👉 Botón cerrar sesión PRESIONADO (WORKER)');
+                  Navigator.of(dialogContext).pop();
+                  await parentContext.read<AuthProvider>().logout(
+                    parentContext,
+                  );
+                  parentContext.read<NestJSProvider>().clearAuth();
+                  parentContext.go('/login');
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: colorScheme.error,
+                  foregroundColor: colorScheme.onError,
+                ),
+                child: const Text('Cerrar Sesión'),
+              ),
+            ],
+          ),
     );
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/nestjs_provider.dart';
-import '../../config/api_config.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginScreenNew extends StatefulWidget {
@@ -59,12 +58,12 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
       if (mounted) {
         // Navegar según el rol del usuario
         final userRole = response['user']?['role']?['name'] ?? 'user';
-        
+
         if (userRole == 'worker') {
           // Verificar si el trabajador tiene servicios configurados
           try {
             final hasServices = await nestJSProvider.hasWorkerServices();
-            
+
             if (!hasServices) {
               // Si no tiene servicios configurados, redirigir a completar registro
               context.go('/complete-worker-registration');
@@ -99,7 +98,7 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: SafeArea(
@@ -182,9 +181,10 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: _isConnected 
-          ? theme.colorScheme.primaryContainer 
-          : theme.colorScheme.errorContainer,
+        color:
+            _isConnected
+                ? theme.colorScheme.primaryContainer
+                : theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -192,18 +192,20 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
         children: [
           Icon(
             _isConnected ? Icons.wifi : Icons.wifi_off,
-            color: _isConnected 
-              ? theme.colorScheme.onPrimaryContainer 
-              : theme.colorScheme.onErrorContainer,
+            color:
+                _isConnected
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onErrorContainer,
             size: 16,
           ),
           const SizedBox(width: 8),
           Text(
             _isConnected ? 'Conectado al servidor' : 'Sin conexión al servidor',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: _isConnected 
-                ? theme.colorScheme.onPrimaryContainer 
-                : theme.colorScheme.onErrorContainer,
+              color:
+                  _isConnected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onErrorContainer,
             ),
           ),
         ],
@@ -222,9 +224,7 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
             labelText: 'Correo electrónico',
             hintText: 'ejemplo@correo.com',
             prefixIcon: const Icon(Icons.email_outlined),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
@@ -256,9 +256,7 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
                 });
               },
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
@@ -279,20 +277,19 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
       onPressed: _isConnected && !_isLoading ? _login : null,
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: _isLoading
-        ? const SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        : const Text(
-            'Iniciar Sesión',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
+      child:
+          _isLoading
+              ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+              : const Text(
+                'Iniciar Sesión',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
     );
   }
 
@@ -327,9 +324,7 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
       onPressed: () => context.go('/register'),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: const Text(
         '¿No tienes cuenta? Regístrate',
@@ -344,4 +339,4 @@ class _LoginScreenNewState extends State<LoginScreenNew> {
     _passwordController.dispose();
     super.dispose();
   }
-} 
+}

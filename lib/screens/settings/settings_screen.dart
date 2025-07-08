@@ -7,9 +7,10 @@ import '../../providers/language_provider.dart';
 import '../../utils/sample_data.dart';
 import '../../widgets/delete_account_dialog.dart';
 import '../../models/app_user.dart'; // Agregar import
+import '../../providers/nestjs_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -146,9 +147,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        currentUser != null && currentUser.name.isNotEmpty 
-                          ? currentUser.name.substring(0, 1).toUpperCase() 
-                          : 'U',
+                        currentUser != null && currentUser.name.isNotEmpty
+                            ? currentUser.name.substring(0, 1).toUpperCase()
+                            : 'U',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -163,13 +164,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          currentUser?.email ?? 'Usuario',
+                          (currentUser != null && currentUser.name.isNotEmpty)
+                              ? currentUser.name
+                              : (currentUser != null
+                                  ? currentUser.email.split('@').first
+                                  : 'Usuario'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        if (currentUser != null)
+                          Text(
+                            currentUser.email,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                          ),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -531,10 +547,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         height: 40,
         width: 40,
         decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: Theme.of(context).primaryColor, size: 20),
+        child: Icon(
+          icon,
+          color: Theme.of(context).colorScheme.primary,
+          size: 20,
+        ),
       ),
       title: Text(
         title,
@@ -771,14 +791,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showLogoutDialog(
-    BuildContext context,
+    BuildContext parentContext,
     AuthProvider authProvider,
     LanguageProvider languageProvider,
   ) {
+    print('👉 Se abrió _showLogoutDialog (SETTINGS)');
     showDialog(
-      context: context,
+      context: parentContext,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -789,14 +810,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: Text(languageProvider.getTranslatedText('cancelar')),
               ),
               ElevatedButton(
                 onPressed: () {
-                  authProvider.signOut();
-                  Navigator.pop(context);
-                  context.go('/login');
+                  print('👉 Botón cerrar sesión PRESIONADO (SETTINGS)');
+                  authProvider.logout(parentContext);
+                  parentContext.read<NestJSProvider>().clearAuth();
+                  Navigator.pop(dialogContext);
+                  parentContext.go('/login');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[600],

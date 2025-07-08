@@ -152,8 +152,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 DropdownButtonFormField<String>(
                   value: selectedSpecialty,
                   onChanged: (value) {
-                    if (value != null)
+                    if (value != null) {
                       setState(() => selectedSpecialty = value);
+                    }
                   },
                   decoration: InputDecoration(
                     filled: true,

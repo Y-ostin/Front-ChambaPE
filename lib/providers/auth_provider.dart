@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
 import '../models/app_user.dart';
@@ -11,7 +10,7 @@ import 'nestjs_provider.dart';
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  
+
   User? _user;
   AppUser? _currentUser;
   Map<String, dynamic>? _userProfile;
@@ -33,7 +32,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       // Verificar usuario de Firebase
       _user = _auth.currentUser;
-      
+
       // Si hay usuario, obtener perfil del backend
       if (_user != null) {
         await _loadUserProfile();
@@ -48,7 +47,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Login con email y contraseña (Backend + Firebase)
-  Future<void> login(String email, String password, BuildContext context) async {
+  Future<void> login(
+    String email,
+    String password,
+    BuildContext context,
+  ) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -61,19 +64,26 @@ class AuthProvider extends ChangeNotifier {
         password,
       );
 
-      // 2. Login en Firebase (para mantener consistencia)
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // 2. Intentar login en Firebase (puede fallar si el usuario sólo existe en backend)
+      try {
+        final credential = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        _user = credential.user;
+      } on FirebaseAuthException catch (e) {
+        // Si el usuario no existe en Firebase o contraseña incorrecta,
+        // continuamos con la sesión del backend.
+        print('Firebase login failed: \\(e.code). Continuando con backend.');
+        _user = null;
+      }
 
-      _user = credential.user;
-      
       // 3. Cargar perfil del usuario
       await _loadUserProfile();
-      
+
       // 4. Si es trabajador, verificar si necesita completar registro
-      if (_currentUser?.role == 'WORKER' || _currentUser?.role == 'trabajador') {
+      if (_currentUser?.role == 'WORKER' ||
+          _currentUser?.role == 'trabajador') {
         final hasServices = await nestJSProvider.hasWorkerServices();
         if (!hasServices) {
           // Redirigir a completar registro
@@ -81,7 +91,6 @@ class AuthProvider extends ChangeNotifier {
           return;
         }
       }
-
     } catch (e) {
       _errorMessage = 'Error al iniciar sesión: $e';
       throw Exception(_errorMessage);
@@ -125,7 +134,6 @@ class AuthProvider extends ChangeNotifier {
       await credential.user?.updateDisplayName('$firstName $lastName');
 
       _user = credential.user;
-
     } catch (e) {
       _errorMessage = 'Error al registrar: $e';
       throw Exception(_errorMessage);
@@ -149,7 +157,8 @@ class AuthProvider extends ChangeNotifier {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -162,7 +171,6 @@ class AuthProvider extends ChangeNotifier {
       if (_user != null) {
         await _loadUserProfile();
       }
-
     } catch (e) {
       _errorMessage = 'Error al iniciar sesión con Google: $e';
       throw Exception(_errorMessage);
@@ -173,32 +181,40 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Logout
-  Future<void> logout() async {
+  Future<void> logout(BuildContext context) async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      print('AuthProvider.logout(): iniciando logout');
       await _auth.signOut();
       await _googleSignIn.signOut();
       await ApiService.logout();
-      
+
+      // Limpiar inmediatamente estado y token de NestJS para que GoRouter detecte la desautenticación
+      context.read<NestJSProvider>().clearAuth();
       _user = null;
       _currentUser = null;
       _userProfile = null;
-      _errorMessage = null;
+      notifyListeners();
     } catch (e) {
       _errorMessage = 'Error al cerrar sesión: $e';
-    }
+      print('Logout error: $e');
+    } finally {
+      print(
+        'AuthProvider.logout(): logout finalizado - isAuthenticated Firebase: ${_auth.currentUser == null}',
+      );
 
-    _isLoading = false;
-    notifyListeners();
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Cargar perfil del usuario desde el backend
   Future<void> _loadUserProfile() async {
     try {
       final profileResult = await ApiService.getProfile();
-      
+
       if (profileResult['success']) {
         _userProfile = profileResult['data'];
         // Crear AppUser desde los datos del backend
@@ -206,7 +222,9 @@ class AuthProvider extends ChangeNotifier {
           _currentUser = AppUser(
             uid: _user!.uid,
             email: _userProfile!['email'] ?? _user!.email ?? '',
-            name: '${_userProfile!['firstName'] ?? ''} ${_userProfile!['lastName'] ?? ''}'.trim(),
+            name:
+                '${_userProfile!['firstName'] ?? ''} ${_userProfile!['lastName'] ?? ''}'
+                    .trim(),
             phone: _userProfile!['phone'],
             address: _userProfile!['address'],
             role: _userProfile!['role']?['name'] ?? 'USER',
@@ -221,8 +239,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Logout/SignOut
-  Future<void> signOut() async {
-    await logout();
+  Future<void> signOut(BuildContext context) async {
+    await logout(context);
   }
 
   // Método para eliminar cuenta
@@ -238,10 +256,10 @@ class AuthProvider extends ChangeNotifier {
           password: password,
         );
         await _user!.reauthenticateWithCredential(credential);
-        
+
         // Eliminar usuario de Firebase
         await _user!.delete();
-        
+
         // Limpiar estado
         _user = null;
         _currentUser = null;
@@ -258,7 +276,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Métodos auxiliares
-  bool get isWorker => _currentUser?.role == 'WORKER' || _currentUser?.role == 'trabajador';
-  bool get isClient => _currentUser?.role == 'USER' || _currentUser?.role == 'cliente';
+  bool get isWorker =>
+      _currentUser?.role == 'WORKER' || _currentUser?.role == 'trabajador';
+  bool get isClient =>
+      _currentUser?.role == 'USER' || _currentUser?.role == 'cliente';
   String get fullName => _currentUser?.name ?? '';
 }

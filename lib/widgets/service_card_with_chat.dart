@@ -11,7 +11,7 @@ class ServiceCardWithChat extends StatelessWidget {
   final String? imageUrl;
 
   const ServiceCardWithChat({
-    Key? key,
+    super.key,
     required this.workerId,
     required this.workerName,
     required this.serviceType,
@@ -19,7 +19,7 @@ class ServiceCardWithChat extends StatelessWidget {
     required this.rating,
     required this.completedJobs,
     this.imageUrl,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'dart:io';
-import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../providers/nestjs_provider.dart';
 import '../../widgets/document_upload_widget.dart';
@@ -26,22 +24,26 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _dniController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isWorker = false;
   bool _isConnected = false;
-  
+
   // Documentos para trabajadores
   File? _dniFrontal;
   File? _dniPosterior;
   File? _certificatePdf;
 
   // Función helper para mostrar errores de manera elegante
-  void _showErrorSnackBar(String title, String message, {Color? backgroundColor}) {
+  void _showErrorSnackBar(
+    String title,
+    String message, {
+    Color? backgroundColor,
+  }) {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Column(
@@ -51,7 +53,9 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
             Row(
               children: [
                 Icon(
-                  backgroundColor == Colors.orange ? Icons.warning : Icons.error,
+                  backgroundColor == Colors.orange
+                      ? Icons.warning
+                      : Icons.error,
                   color: Colors.white,
                   size: 20,
                 ),
@@ -71,19 +75,14 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
             const SizedBox(height: 4),
             Text(
               message,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-              ),
+              style: const TextStyle(fontSize: 14, color: Colors.white),
             ),
           ],
         ),
         backgroundColor: backgroundColor ?? Colors.red,
         duration: const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
         action: SnackBarAction(
           label: 'Entendido',
@@ -123,9 +122,11 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
       // Si es trabajador, validar documentos ANTES del registro
       if (_isWorker) {
         print('🔍 Iniciando validación de documentos para trabajador...');
-        
+
         // Verificar que todos los archivos estén subidos
-        if (_dniFrontal == null || _dniPosterior == null || _certificatePdf == null) {
+        if (_dniFrontal == null ||
+            _dniPosterior == null ||
+            _certificatePdf == null) {
           print('❌ Faltan archivos para validar');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -143,32 +144,34 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
           dniPosterior: _dniPosterior!,
           certUnico: _certificatePdf!,
         );
-        
+
         print('📡 Resultado de validación: $result');
-        
+
         if (result == null) {
           // Error de conexión o respuesta nula
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('ERROR INTERNO: No se pudo conectar con el servidor'),
+              content: Text(
+                'ERROR INTERNO: No se pudo conectar con el servidor',
+              ),
               backgroundColor: Colors.red,
             ),
           );
           return;
         }
-        
+
         print('🔍 Resultado completo de validación: $result');
         print('🔍 Tipo de valido: ${result['valido'].runtimeType}');
         print('🔍 Valor de valido: ${result['valido']}');
-        
+
         final valido = result['valido'] ?? false;
         final antecedentes = result['antecedentes'] ?? [];
         final mensaje = result['mensaje'] ?? 'Sin mensaje';
-        
+
         print('🔍 Valido procesado: $valido (tipo: ${valido.runtimeType})');
         print('🔍 Antecedentes: $antecedentes');
         print('🔍 Mensaje: $mensaje');
-        
+
         if (valido == false && antecedentes.isNotEmpty) {
           // Tiene antecedentes
           ScaffoldMessenger.of(context).showSnackBar(
@@ -218,6 +221,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
         'password': _passwordController.text,
         'firstName': _firstNameController.text.trim(),
         'lastName': _lastNameController.text.trim(),
+        'phone': _phoneController.text.trim(),
       });
 
       // Si es trabajador, registrar como trabajador inmediatamente
@@ -232,7 +236,9 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Usuario registrado pero error al completar perfil de trabajador: $e'),
+                content: Text(
+                  'Usuario registrado pero error al completar perfil de trabajador: $e',
+                ),
                 backgroundColor: Colors.orange,
                 duration: const Duration(seconds: 5),
               ),
@@ -265,42 +271,57 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Usuario creado en ChambaPE, pero ya existe en Firebase.'),
+              content: Text(
+                'Usuario creado en ChambaPE, pero ya existe en Firebase.',
+              ),
               backgroundColor: Colors.orange,
             ),
           );
         }
       }
 
-      // Navegar a la pantalla de verificación de email
+      // Navegar según tipo de usuario
       if (mounted) {
-        context.go('/email-verification', extra: {
-          'email': _emailController.text.trim(),
-          'isWorker': _isWorker,
-        });
+        if (_isWorker) {
+          // Trabajador: ir a verificación de email
+          context.go(
+            '/email-verification',
+            extra: {
+              'email': _emailController.text.trim(),
+              'isWorker': _isWorker,
+            },
+          );
+        } else {
+          // Cliente: ir directamente a su dashboard
+          context.go('/client/dashboard');
+        }
       }
     } catch (e) {
       print('❌ Error en registro: $e');
       String errorMsg = 'Error interno del servidor';
       String errorTitle = 'Error';
       Color backgroundColor = Colors.red;
-      
+
       // Manejar errores específicos del backend
-      if (e.toString().contains('emailAlreadyExists') || 
+      if (e.toString().contains('emailAlreadyExists') ||
           e.toString().contains('emailExists') ||
           e.toString().contains('email already exists')) {
-        errorMsg = 'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
+        errorMsg =
+            'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
         errorTitle = 'Correo existente';
         backgroundColor = Colors.orange;
-      } else if (e.toString().contains('password') && e.toString().contains('weak')) {
+      } else if (e.toString().contains('password') &&
+          e.toString().contains('weak')) {
         errorMsg = 'La contraseña debe tener al menos 6 caracteres.';
         errorTitle = 'Contraseña débil';
         backgroundColor = Colors.orange;
-      } else if (e.toString().contains('firstName') || e.toString().contains('lastName')) {
+      } else if (e.toString().contains('firstName') ||
+          e.toString().contains('lastName')) {
         errorMsg = 'Por favor, completa todos los campos obligatorios.';
         errorTitle = 'Campos incompletos';
         backgroundColor = Colors.orange;
-      } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+      } else if (e.toString().contains('network') ||
+          e.toString().contains('connection')) {
         errorMsg = 'Error de conexión. Verifica tu conexión a internet.';
         errorTitle = 'Error de conexión';
         backgroundColor = Colors.red;
@@ -309,8 +330,12 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
         errorTitle = 'Datos inválidos';
         backgroundColor = Colors.orange;
       }
-      
-      _showErrorSnackBar(errorTitle, errorMsg, backgroundColor: backgroundColor);
+
+      _showErrorSnackBar(
+        errorTitle,
+        errorMsg,
+        backgroundColor: backgroundColor,
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -320,10 +345,14 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
 
   Future<void> _registerWorker(NestJSProvider nestJSProvider) async {
     print('🚀 Iniciando registro público de trabajador...');
-    
+
     // Validar que todos los archivos estén presentes
-    if (_dniFrontal == null || _dniPosterior == null || _certificatePdf == null) {
-      throw Exception('Todos los documentos son requeridos: DNI frontal, DNI posterior y certificado PDF');
+    if (_dniFrontal == null ||
+        _dniPosterior == null ||
+        _certificatePdf == null) {
+      throw Exception(
+        'Todos los documentos son requeridos: DNI frontal, DNI posterior y certificado PDF',
+      );
     }
 
     try {
@@ -340,18 +369,17 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
         description: 'Trabajador registrado en ChambaPE',
         radiusKm: 15,
       );
-      
+
       print('📡 Resultado registro público trabajador: $result');
       print('✅ Trabajador registrado exitosamente');
-      
     } catch (e) {
       print('❌ Error en registro público de trabajador: $e');
-      
+
       // Manejar errores específicos del registro de trabajador
       String errorMsg = 'Error al registrar trabajador';
       String errorTitle = 'Error de registro';
       Color backgroundColor = Colors.red;
-      
+
       // Extraer el tipo de error del mensaje (formato: tipo:mensaje)
       String errorString = e.toString();
       if (errorString.contains(':')) {
@@ -359,10 +387,11 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
         if (parts.length >= 2) {
           final errorType = parts[0].replaceAll('Exception: ', '');
           final errorMessage = parts.sublist(1).join(':');
-          
+
           switch (errorType) {
             case 'emailAlreadyExists':
-              errorMsg = 'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
+              errorMsg =
+                  'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
               errorTitle = 'Correo existente';
               backgroundColor = Colors.orange;
               break;
@@ -399,37 +428,49 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
         }
       } else {
         // Fallback para errores sin formato específico
-        if (errorString.contains('emailAlreadyExists') || 
+        if (errorString.contains('emailAlreadyExists') ||
             errorString.contains('emailExists') ||
             errorString.contains('email already exists')) {
-          errorMsg = 'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
+          errorMsg =
+              'Este correo electrónico ya está registrado. Por favor, intenta con otro correo.';
           errorTitle = 'Correo existente';
           backgroundColor = Colors.orange;
-        } else if (errorString.contains('files') && errorString.contains('required')) {
-          errorMsg = 'Todos los documentos son requeridos: DNI frontal, DNI posterior y certificado PDF.';
+        } else if (errorString.contains('files') &&
+            errorString.contains('required')) {
+          errorMsg =
+              'Todos los documentos son requeridos: DNI frontal, DNI posterior y certificado PDF.';
           errorTitle = 'Documentos faltantes';
           backgroundColor = Colors.orange;
-        } else if (errorString.contains('dni') && errorString.contains('invalid')) {
+        } else if (errorString.contains('dni') &&
+            errorString.contains('invalid')) {
           errorMsg = 'El número de DNI ingresado no es válido.';
           errorTitle = 'DNI inválido';
           backgroundColor = Colors.orange;
-        } else if (errorString.contains('validation') || errorString.contains('422')) {
+        } else if (errorString.contains('validation') ||
+            errorString.contains('422')) {
           errorMsg = 'Por favor, verifica que todos los datos sean correctos.';
           errorTitle = 'Datos inválidos';
           backgroundColor = Colors.orange;
         }
       }
-      
-      _showErrorSnackBar(errorTitle, errorMsg, backgroundColor: backgroundColor);
-      
+
+      _showErrorSnackBar(
+        errorTitle,
+        errorMsg,
+        backgroundColor: backgroundColor,
+      );
+
       throw Exception('Error al registrar trabajador: $e');
     }
   }
 
-  Future<void> _pickImage(ImageSource source, Function(File) onImagePicked) async {
+  Future<void> _pickImage(
+    ImageSource source,
+    Function(File) onImagePicked,
+  ) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source);
-    
+
     if (pickedFile != null) {
       onImagePicked(File(pickedFile.path));
     }
@@ -438,7 +479,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
@@ -529,9 +570,10 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: _isConnected 
-          ? theme.colorScheme.primaryContainer 
-          : theme.colorScheme.errorContainer,
+        color:
+            _isConnected
+                ? theme.colorScheme.primaryContainer
+                : theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -539,18 +581,20 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
         children: [
           Icon(
             _isConnected ? Icons.wifi : Icons.wifi_off,
-            color: _isConnected 
-              ? theme.colorScheme.onPrimaryContainer 
-              : theme.colorScheme.onErrorContainer,
+            color:
+                _isConnected
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onErrorContainer,
             size: 16,
           ),
           const SizedBox(width: 8),
           Text(
             _isConnected ? 'Conectado al servidor' : 'Sin conexión al servidor',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: _isConnected 
-                ? theme.colorScheme.onPrimaryContainer 
-                : theme.colorScheme.onErrorContainer,
+              color:
+                  _isConnected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onErrorContainer,
             ),
           ),
         ],
@@ -617,13 +661,15 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected 
-            ? theme.colorScheme.primaryContainer 
-            : theme.colorScheme.surface,
+          color:
+              isSelected
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surface,
           border: Border.all(
-            color: isSelected 
-              ? theme.colorScheme.primary 
-              : theme.colorScheme.outline,
+            color:
+                isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline,
             width: 2,
           ),
           borderRadius: BorderRadius.circular(12),
@@ -633,27 +679,30 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
             Icon(
               icon,
               size: 32,
-              color: isSelected 
-                ? theme.colorScheme.onPrimaryContainer 
-                : theme.colorScheme.onSurfaceVariant,
+              color:
+                  isSelected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 8),
             Text(
               title,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: isSelected 
-                  ? theme.colorScheme.onPrimaryContainer 
-                  : theme.colorScheme.onSurface,
+                color:
+                    isSelected
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: isSelected 
-                  ? theme.colorScheme.onPrimaryContainer.withOpacity(0.8)
-                  : theme.colorScheme.onSurfaceVariant,
+                color:
+                    isSelected
+                        ? theme.colorScheme.onPrimaryContainer.withOpacity(0.8)
+                        : theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
@@ -677,11 +726,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               ),
             ),
             const SizedBox(height: 16),
-            
-            // DNI
-            _buildDniField(),
-            const SizedBox(height: 20),
-            
+
             // Nombres
             TextFormField(
               controller: _firstNameController,
@@ -697,7 +742,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               },
             ),
             const SizedBox(height: 20),
-            
+
             // Apellidos
             TextFormField(
               controller: _lastNameController,
@@ -712,7 +757,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
                 return null;
               },
             ),
-            
+
             // Email
             TextFormField(
               controller: _emailController,
@@ -732,7 +777,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               },
             ),
             const SizedBox(height: 20),
-            
+
             // Teléfono
             TextFormField(
               controller: _phoneController,
@@ -749,7 +794,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               },
             ),
             const SizedBox(height: 20),
-            
+
             // Contraseña
             TextFormField(
               controller: _passwordController,
@@ -779,7 +824,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               },
             ),
             const SizedBox(height: 20),
-            
+
             // Confirmar contraseña
             TextFormField(
               controller: _confirmPasswordController,
@@ -789,7 +834,9 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                    _obscureConfirmPassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
                   ),
                   onPressed: () {
                     setState(() {
@@ -809,8 +856,6 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               },
             ),
             const SizedBox(height: 20),
-            
-
           ],
         ),
       ),
@@ -831,7 +876,11 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
+            // DNI
+            _buildDniField(),
+            const SizedBox(height: 16),
+
             // Documentos requeridos
             Text(
               'Documentos requeridos',
@@ -840,7 +889,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               ),
             ),
             const SizedBox(height: 8),
-            
+
             // Carga de archivos DNI frontal
             DocumentUploadWidget(
               title: 'DNI Frontal',
@@ -851,7 +900,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               isRequired: true,
             ),
             const SizedBox(height: 16),
-            
+
             // Carga de archivos DNI posterior
             DocumentUploadWidget(
               title: 'DNI Posterior',
@@ -862,7 +911,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               isRequired: true,
             ),
             const SizedBox(height: 16),
-            
+
             // Carga de certificado único laboral
             DocumentUploadWidget(
               title: 'Certificado Único Laboral',
@@ -880,13 +929,14 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
   }
 
   Widget _buildDniField() {
-    return TextField(
+    return TextFormField(
       controller: _dniController,
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
         labelText: 'DNI',
+        border: const OutlineInputBorder(),
         suffixIcon: IconButton(
-          icon: Icon(Icons.search),
+          icon: const Icon(Icons.search),
           onPressed: () async {
             final dni = _dniController.text.trim();
             if (dni.length == 8) {
@@ -894,17 +944,32 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
               if (data != null) {
                 setState(() {
                   _firstNameController.text = data['nombres'] ?? '';
-                  _lastNameController.text = '${data['apellido_paterno'] ?? ''} ${data['apellido_materno'] ?? ''}'.trim();
+                  _lastNameController.text =
+                      '${data['apellido_paterno'] ?? ''} ${data['apellido_materno'] ?? ''}'
+                          .trim();
                 });
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('DNI no válido o no encontrado')),
+                  const SnackBar(
+                    content: Text('DNI no válido o no encontrado'),
+                  ),
                 );
               }
             }
           },
         ),
       ),
+      validator: (value) {
+        if (_isWorker) {
+          if (value == null || value.isEmpty) {
+            return 'Campo requerido';
+          }
+          if (value.length != 8) {
+            return 'DNI inválido';
+          }
+        }
+        return null;
+      },
     );
   }
 
@@ -913,20 +978,22 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
       onPressed: _isConnected && !_isLoading ? _register : null,
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: _isLoading
-        ? const SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        : Text(
-            _isWorker ? 'Registrar como Trabajador' : 'Crear Cuenta',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
+      child:
+          _isLoading
+              ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+              : Text(
+                _isWorker ? 'Registrar como Trabajador' : 'Crear Cuenta',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
     );
   }
 
@@ -934,10 +1001,7 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          '¿Ya tienes cuenta? ',
-          style: theme.textTheme.bodyMedium,
-        ),
+        Text('¿Ya tienes cuenta? ', style: theme.textTheme.bodyMedium),
         TextButton(
           onPressed: () => context.go('/login'),
           child: const Text('Iniciar sesión'),
@@ -957,4 +1021,4 @@ class _RegisterScreenNewState extends State<RegisterScreenNew> {
     _dniController.dispose();
     super.dispose();
   }
-} 
+}

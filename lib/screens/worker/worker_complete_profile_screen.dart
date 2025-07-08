@@ -4,24 +4,25 @@ import 'package:provider/provider.dart';
 import '../../providers/nestjs_provider.dart';
 import '../../services/validate_service.dart';
 import 'dart:io';
-import 'dart:convert';
 
 class WorkerCompleteProfileScreen extends StatefulWidget {
   const WorkerCompleteProfileScreen({super.key});
 
   @override
-  State<WorkerCompleteProfileScreen> createState() => _WorkerCompleteProfileScreenState();
+  State<WorkerCompleteProfileScreen> createState() =>
+      _WorkerCompleteProfileScreenState();
 }
 
-class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScreen> {
+class _WorkerCompleteProfileScreenState
+    extends State<WorkerCompleteProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _dniController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _isConnected = false;
   int _currentStep = 0;
-  
+
   // Documentos para trabajadores
   File? _dniFrontal;
   File? _dniPosterior;
@@ -29,15 +30,40 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
 
   // Servicios seleccionados
   final List<int> _selectedServices = [];
-  
+
   // Servicios disponibles (mock data - después se cargará del backend)
   final List<Map<String, dynamic>> _availableServices = [
     {'id': 1, 'name': 'Plomería', 'icon': Icons.plumbing, 'color': Colors.blue},
-    {'id': 2, 'name': 'Electricidad', 'icon': Icons.electrical_services, 'color': Colors.orange},
-    {'id': 3, 'name': 'Carpintería', 'icon': Icons.handyman, 'color': Colors.brown},
-    {'id': 4, 'name': 'Pintura', 'icon': Icons.format_paint, 'color': Colors.purple},
-    {'id': 5, 'name': 'Limpieza', 'icon': Icons.cleaning_services, 'color': Colors.green},
-    {'id': 6, 'name': 'Jardinería', 'icon': Icons.eco, 'color': Colors.lightGreen},
+    {
+      'id': 2,
+      'name': 'Electricidad',
+      'icon': Icons.electrical_services,
+      'color': Colors.orange,
+    },
+    {
+      'id': 3,
+      'name': 'Carpintería',
+      'icon': Icons.handyman,
+      'color': Colors.brown,
+    },
+    {
+      'id': 4,
+      'name': 'Pintura',
+      'icon': Icons.format_paint,
+      'color': Colors.purple,
+    },
+    {
+      'id': 5,
+      'name': 'Limpieza',
+      'icon': Icons.cleaning_services,
+      'color': Colors.green,
+    },
+    {
+      'id': 6,
+      'name': 'Jardinería',
+      'icon': Icons.eco,
+      'color': Colors.lightGreen,
+    },
   ];
 
   @override
@@ -90,7 +116,9 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
       final nestJSProvider = context.read<NestJSProvider>();
 
       // Validar documentos
-      if (_dniFrontal == null || _dniPosterior == null || _certificatePdf == null) {
+      if (_dniFrontal == null ||
+          _dniPosterior == null ||
+          _certificatePdf == null) {
         throw Exception('Debe subir todos los documentos requeridos');
       }
 
@@ -101,14 +129,14 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
         dniPosterior: _dniPosterior!,
         certUnico: _certificatePdf!,
       );
-      
+
       if (result == null) {
         throw Exception('No se pudo conectar con el servidor');
       }
-      
+
       final valido = result['valido'] ?? false;
       final antecedentes = result['antecedentes'] ?? [];
-      
+
       if (valido == false && antecedentes.isNotEmpty) {
         throw Exception('TIENE ANTECEDENTES, NO PUEDE USAR LA APP');
       } else if (valido == false) {
@@ -117,7 +145,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
 
       // Registrar trabajador
       await _registerWorker(nestJSProvider);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -125,19 +153,15 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Redirigir al dashboard
         context.go('/worker/dashboard');
       }
-
     } catch (e) {
       print('❌ Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -151,13 +175,19 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
     // Subir documentos
     final uploadedDocs = <String, dynamic>{};
     if (_dniFrontal != null) {
-      uploadedDocs['dniFrontal'] = await nestJSProvider.uploadFile(_dniFrontal!);
+      uploadedDocs['dniFrontal'] = await nestJSProvider.uploadFile(
+        _dniFrontal!,
+      );
     }
     if (_dniPosterior != null) {
-      uploadedDocs['dniPosterior'] = await nestJSProvider.uploadFile(_dniPosterior!);
+      uploadedDocs['dniPosterior'] = await nestJSProvider.uploadFile(
+        _dniPosterior!,
+      );
     }
     if (_certificatePdf != null) {
-      uploadedDocs['certificatePdf'] = await nestJSProvider.uploadFile(_certificatePdf!);
+      uploadedDocs['certificatePdf'] = await nestJSProvider.uploadFile(
+        _certificatePdf!,
+      );
     }
 
     // Registrar trabajador
@@ -166,13 +196,14 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
       'dniFrontalUrl': uploadedDocs['dniFrontal'],
       'dniPosteriorUrl': uploadedDocs['dniPosterior'],
       'certificatePdfUrl': uploadedDocs['certificatePdf'],
-      'description': _descriptionController.text.trim().isNotEmpty 
-        ? _descriptionController.text.trim() 
-        : 'Trabajador registrado en ChambaPE',
+      'description':
+          _descriptionController.text.trim().isNotEmpty
+              ? _descriptionController.text.trim()
+              : 'Trabajador registrado en ChambaPE',
       'radiusKm': 10,
       'serviceCategories': _selectedServices,
     };
-    
+
     await nestJSProvider.registerWorker(workerData);
   }
 
@@ -183,7 +214,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
         children: List.generate(3, (index) {
           final isActive = index <= _currentStep;
           final isCompleted = index < _currentStep;
-          
+
           return Expanded(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -193,17 +224,16 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isCompleted 
-                        ? Colors.green 
-                        : isActive 
-                          ? Theme.of(context).colorScheme.primary 
-                          : Colors.grey.shade300,
+                      color:
+                          isCompleted
+                              ? Colors.green
+                              : isActive
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey.shade300,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isCompleted 
-                        ? Icons.check 
-                        : Icons.person,
+                      isCompleted ? Icons.check : Icons.person,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -213,10 +243,12 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
                     ['Documentos', 'Servicios', 'Finalizar'][index],
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                      color: isActive 
-                        ? Theme.of(context).colorScheme.primary 
-                        : Colors.grey,
+                      fontWeight:
+                          isActive ? FontWeight.bold : FontWeight.normal,
+                      color:
+                          isActive
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
                     ),
                   ),
                 ],
@@ -234,21 +266,15 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
       children: [
         const Text(
           'Documentos de Identidad',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         const Text(
           'Sube los documentos necesarios para validar tu identidad',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
         const SizedBox(height: 24),
-        
+
         // DNI Number
         TextFormField(
           controller: _dniController,
@@ -268,7 +294,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
           },
         ),
         const SizedBox(height: 24),
-        
+
         // Document upload section
         _buildDocumentUpload(
           'DNI Frontal',
@@ -277,7 +303,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
           Icons.camera_alt,
         ),
         const SizedBox(height: 16),
-        
+
         _buildDocumentUpload(
           'DNI Posterior',
           _dniPosterior,
@@ -285,7 +311,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
           Icons.camera_alt,
         ),
         const SizedBox(height: 16),
-        
+
         _buildDocumentUpload(
           'Certificado Único Laboral',
           _certificatePdf,
@@ -303,21 +329,15 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
       children: [
         const Text(
           'Servicios que Ofreces',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         const Text(
           'Selecciona los servicios que puedes realizar',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
         const SizedBox(height: 24),
-        
+
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -331,7 +351,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
           itemBuilder: (context, index) {
             final service = _availableServices[index];
             final isSelected = _selectedServices.contains(service['id']);
-            
+
             return GestureDetector(
               onTap: () {
                 setState(() {
@@ -344,14 +364,13 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected 
-                    ? service['color'].withOpacity(0.1)
-                    : Colors.grey.shade100,
+                  color:
+                      isSelected
+                          ? service['color'].withOpacity(0.1)
+                          : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected 
-                      ? service['color']
-                      : Colors.grey.shade300,
+                    color: isSelected ? service['color'] : Colors.grey.shade300,
                     width: 2,
                   ),
                 ),
@@ -361,9 +380,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
                     Icon(
                       service['icon'],
                       size: 40,
-                      color: isSelected 
-                        ? service['color']
-                        : Colors.grey,
+                      color: isSelected ? service['color'] : Colors.grey,
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -371,9 +388,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: isSelected 
-                          ? service['color']
-                          : Colors.grey,
+                        color: isSelected ? service['color'] : Colors.grey,
                       ),
                     ),
                     if (isSelected)
@@ -398,32 +413,27 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
       children: [
         const Text(
           'Información Adicional',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         const Text(
           'Cuéntanos sobre tu experiencia y especialidades',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
         const SizedBox(height: 24),
-        
+
         TextFormField(
           controller: _descriptionController,
           maxLines: 4,
           decoration: const InputDecoration(
             labelText: 'Descripción de servicios',
-            hintText: 'Describe tu experiencia, especialidades y lo que te hace único...',
+            hintText:
+                'Describe tu experiencia, especialidades y lo que te hace único...',
             border: OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 24),
-        
+
         // Resumen de información
         Container(
           padding: const EdgeInsets.all(16),
@@ -436,15 +446,14 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
             children: [
               const Text(
                 'Resumen de tu perfil:',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               Text('DNI: ${_dniController.text}'),
               Text('Servicios: ${_selectedServices.length} seleccionados'),
-              Text('Documentos: ${_dniFrontal != null && _dniPosterior != null && _certificatePdf != null ? "Completos" : "Pendientes"}'),
+              Text(
+                'Documentos: ${_dniFrontal != null && _dniPosterior != null && _certificatePdf != null ? "Completos" : "Pendientes"}',
+              ),
             ],
           ),
         ),
@@ -539,7 +548,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
         child: Column(
           children: [
             _buildStepIndicator(),
-            
+
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -552,7 +561,7 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
                 ),
               ),
             ),
-            
+
             // Navigation buttons
             Container(
               padding: const EdgeInsets.all(16),
@@ -568,14 +577,18 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
                   if (_currentStep > 0) const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isLoading 
-                        ? null 
-                        : _currentStep == 2 
-                          ? _completeProfile
-                          : _nextStep,
-                      child: _isLoading
-                        ? const CircularProgressIndicator()
-                        : Text(_currentStep == 2 ? 'Completar' : 'Siguiente'),
+                      onPressed:
+                          _isLoading
+                              ? null
+                              : _currentStep == 2
+                              ? _completeProfile
+                              : _nextStep,
+                      child:
+                          _isLoading
+                              ? const CircularProgressIndicator()
+                              : Text(
+                                _currentStep == 2 ? 'Completar' : 'Siguiente',
+                              ),
                     ),
                   ),
                 ],
@@ -586,4 +599,4 @@ class _WorkerCompleteProfileScreenState extends State<WorkerCompleteProfileScree
       ),
     );
   }
-} 
+}

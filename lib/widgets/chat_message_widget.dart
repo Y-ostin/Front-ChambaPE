@@ -8,11 +8,11 @@ class ChatMessageWidget extends StatelessWidget {
   final String currentUserId;
 
   const ChatMessageWidget({
-    Key? key,
+    super.key,
     required this.message,
     required this.isOwnMessage,
     required this.currentUserId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

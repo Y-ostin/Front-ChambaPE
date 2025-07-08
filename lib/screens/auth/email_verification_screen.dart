@@ -6,15 +6,15 @@ class EmailVerificationScreen extends StatelessWidget {
   final bool isWorker;
 
   const EmailVerificationScreen({
-    Key? key,
+    super.key,
     required this.email,
     required this.isWorker,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
@@ -67,7 +67,10 @@ class EmailVerificationScreen extends StatelessWidget {
 
               // Email
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.secondaryContainer,
                   borderRadius: BorderRadius.circular(12),
@@ -86,7 +89,7 @@ class EmailVerificationScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -171,4 +174,4 @@ class EmailVerificationScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

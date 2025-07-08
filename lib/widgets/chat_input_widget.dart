@@ -12,13 +12,13 @@ class ChatInputWidget extends StatefulWidget {
   final Function(bool isTyping)? onTypingChanged;
 
   const ChatInputWidget({
-    Key? key,
+    super.key,
     required this.onSendMessage,
     this.onSendImage,
     required this.conversationId,
     required this.currentUserId,
     this.onTypingChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<ChatInputWidget> createState() => _ChatInputWidgetState();
