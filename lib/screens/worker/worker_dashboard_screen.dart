@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/nestjs_provider.dart';
+import 'package:geolocator/geolocator.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   const WorkerDashboardScreen({super.key});
@@ -20,51 +22,14 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
 
   // Mock data - después se cargará del backend
   final Map<String, dynamic> _stats = {
-    'totalJobsCompleted': 24,
-    'totalEarnings': 1250.0,
-    'averageRating': 4.8,
-    'jobsThisWeek': 5,
-    'availableJobsNearby': 3,
+    'totalJobsCompleted': 0,
+    'totalEarnings': 0.0,
+    'averageRating': 0.0,
+    'jobsThisWeek': 0,
+    'availableJobsNearby': 0,
   };
 
-  final List<Map<String, dynamic>> _availableJobs = [
-    {
-      'id': 1,
-      'title': 'Reparación de tubería',
-      'description': 'Fuga en baño principal, necesita reparación urgente',
-      'category': 'Plomería',
-      'distanceKm': 2.5,
-      'estimatedEarnings': 80.0,
-      'clientRating': 4.5,
-      'urgency': 'Alta',
-      'location': 'Av. Ejemplo 123, Arequipa',
-      'expiresAt': DateTime.now().add(const Duration(minutes: 30)),
-    },
-    {
-      'id': 2,
-      'title': 'Instalación eléctrica',
-      'description': 'Instalar luminarias en sala de estar',
-      'category': 'Electricidad',
-      'distanceKm': 1.8,
-      'estimatedEarnings': 120.0,
-      'clientRating': 4.8,
-      'urgency': 'Media',
-      'location': 'Calle Falsa 456, Arequipa',
-      'expiresAt': DateTime.now().add(const Duration(hours: 2)),
-    },
-    {
-      'id': 3,
-      'title': 'Pintura de habitación',
-      'description': 'Pintar habitación principal, 12m²',
-      'category': 'Pintura',
-      'distanceKm': 3.2,
-      'estimatedEarnings': 150.0,
-      'clientRating': 4.2,
-      'urgency': 'Baja',
-      'location': 'Jr. Los Pinos 789, Arequipa',
-      'expiresAt': DateTime.now().add(const Duration(hours: 4)),
-    },
-  ];
+  final List<Map<String, dynamic>> _availableJobs = [];
 
   @override
   void initState() {
@@ -96,9 +61,23 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
     setState(() => _isLoading = true);
     try {
       final nestJSProvider = context.read<NestJSProvider>();
-      // Aquí cargarías los datos reales del backend
-      // await nestJSProvider.getWorkerDashboardStats();
-      // await nestJSProvider.getAvailableJobs();
+      final stats = await nestJSProvider.getWorkerDashboardStats();
+      final jobs = await nestJSProvider.getWorkerAvailableJobs();
+      final profile = await nestJSProvider.getWorkerProfile();
+
+      if (profile != null && profile['isActiveToday'] != null) {
+        _isActiveToday = profile['isActiveToday'] as bool;
+      }
+
+      if (stats != null) {
+        _stats.addAll(stats);
+      }
+
+      _availableJobs
+        ..clear()
+        ..addAll(jobs);
+
+      _stats['availableJobsNearby'] = _availableJobs.length;
     } catch (e) {
       print('Error cargando datos: $e');
     } finally {
@@ -108,18 +87,49 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
 
   Future<void> _toggleActiveToday() async {
     setState(() => _isLoading = true);
+
     try {
       final nestJSProvider = context.read<NestJSProvider>();
-      // await nestJSProvider.toggleWorkerAvailability();
+      bool success = false;
+
+      if (!_isActiveToday) {
+        // Vamos a ACTIVAR disponibilidad → necesitamos ubicación
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          throw Exception(
+              'Permiso de ubicación denegado. Actívalo para recibir trabajos.');
+        }
+
+        final position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high);
+
+        success = await nestJSProvider.toggleActiveToday(
+          latitude: position.latitude,
+          longitude: position.longitude,
+        );
+      } else {
+        // Desactivando – no necesitamos enviar ubicación
+        success = await nestJSProvider.toggleActiveToday();
+      }
+
+      if (!success) {
+        throw Exception('No se pudo actualizar la disponibilidad');
+      }
+
+      // Actualizar estado local y recargar datos
       setState(() => _isActiveToday = !_isActiveToday);
+      await _loadWorkerData();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _isActiveToday
-                ? '✅ Ahora estás disponible para recibir trabajos'
-                : '⏸️ Has pausado la recepción de trabajos',
-          ),
+          content: Text(_isActiveToday
+              ? '✅ Ahora estás disponible para recibir trabajos'
+              : '⏸️ Has pausado la recepción de trabajos'),
           backgroundColor: _isActiveToday ? Colors.green : Colors.orange,
         ),
       );
@@ -135,7 +145,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
   Future<void> _acceptJob(int jobId) async {
     try {
       final nestJSProvider = context.read<NestJSProvider>();
-      // await nestJSProvider.acceptJob(jobId);
+      await nestJSProvider.acceptJob(jobId);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -158,7 +168,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
   Future<void> _rejectJob(int jobId) async {
     try {
       final nestJSProvider = context.read<NestJSProvider>();
-      // await nestJSProvider.rejectJob(jobId);
+      await nestJSProvider.rejectJob(jobId);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -219,13 +229,16 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
                     ),
                   ],
                 ),
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 30,
+                GestureDetector(
+                  onTap: () => context.push('/worker/profile'),
+                  child: CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: const Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 30,
+                    ),
                   ),
                 ),
               ],

@@ -10,7 +10,7 @@ import '../providers/nestjs_provider.dart';
 import '../screens/auth/login_screen_new.dart';
 import '../screens/auth/register_screen_new.dart';
 import '../screens/home_client/map_home_client_screen.dart';
-import '../screens/profile/worker_profile_screen.dart';
+import '../screens/worker/worker_profile_screen.dart';
 import '../screens/profile/history/worker_history_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/auth/email_verification_screen.dart';
@@ -49,12 +49,12 @@ class AppRouter {
           path: '/worker/dashboard',
           builder: (_, __) => const WorkerDashboardScreen(),
         ),
-
-        // Rutas de perfil
         GoRoute(
           path: '/worker/profile',
           builder: (_, __) => const WorkerProfileScreen(),
         ),
+
+        // Rutas de perfil
         GoRoute(
           path: '/worker/history',
           builder: (_, __) => const WorkerHistoryScreen(),

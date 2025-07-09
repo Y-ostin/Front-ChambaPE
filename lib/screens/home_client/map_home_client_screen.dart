@@ -31,7 +31,7 @@ class _MapHomeClientScreenState extends State<MapHomeClientScreen> {
   final _requestFormKey = GlobalKey<FormState>();
   // Fields for new request
   String _reqDescription = '';
-  RangeValues _reqBudgetRange = const RangeValues(50, 500);
+  double _reqBudget = 50; // Precio único para la solicitud
   int _reqCategoryId = 1;
 
   @override
@@ -248,6 +248,8 @@ class _MapHomeClientScreenState extends State<MapHomeClientScreen> {
       _fetchServiceCategories();
     }
 
+    final rootContext = context; // Para mostrar SnackBars de forma segura
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -350,20 +352,27 @@ class _MapHomeClientScreenState extends State<MapHomeClientScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'Rango de precio: S/ ${_reqBudgetRange.start.round()} - ${_reqBudgetRange.end.round()}',
-                      ),
-                      RangeSlider(
-                        values: _reqBudgetRange,
-                        min: 10,
-                        max: 5000,
-                        divisions: 100,
-                        labels: RangeLabels(
-                          _reqBudgetRange.start.round().toString(),
-                          _reqBudgetRange.end.round().toString(),
+                      TextFormField(
+                        initialValue: _reqBudget.toStringAsFixed(0),
+                        decoration: const InputDecoration(
+                          labelText: 'Precio ofrecido (S/)',
+                          prefixText: 'S/ ',
                         ),
-                        onChanged: (r) {
-                          setModalState(() => _reqBudgetRange = r);
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: false,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Requerido';
+                          final val = double.tryParse(v);
+                          if (val == null || val <= 0) {
+                            return 'Ingresa un precio válido';
+                          }
+                          return null;
+                        },
+                        onChanged: (v) {
+                          final val = double.tryParse(v);
+                          if (val != null) setModalState(() => _reqBudget = val);
                         },
                       ),
                       const SizedBox(height: 16),
@@ -378,13 +387,11 @@ class _MapHomeClientScreenState extends State<MapHomeClientScreen> {
                             latitude: _currentLatLng!.latitude,
                             longitude: _currentLatLng!.longitude,
                             serviceCategoryId: _reqCategoryId,
-                            estimatedBudget:
-                                (_reqBudgetRange.start + _reqBudgetRange.end) /
-                                2,
+                            estimatedBudget: _reqBudget,
                           );
 
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            ScaffoldMessenger.of(rootContext).showSnackBar(
                               SnackBar(
                                 content: Text(
                                   result['success'] == true

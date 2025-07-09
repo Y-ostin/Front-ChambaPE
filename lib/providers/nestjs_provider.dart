@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import '../config/api_config.dart';
+import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/service_category.dart';
 
@@ -15,6 +16,16 @@ class NestJSProvider extends ChangeNotifier {
   Map<String, dynamic>? get currentUser => _currentUser;
   bool get isAuthenticated => _authToken != null;
   String get baseUrl => _baseUrl;
+
+  // Asegura que _authToken esté cargado desde SharedPreferences
+  Future<void> _ensureTokenLoaded() async {
+    if (_authToken == null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        _authToken = prefs.getString('auth_token');
+      } catch (_) {}
+    }
+  }
 
   // Headers base para las peticiones
   Map<String, String> get _headers {
@@ -53,6 +64,12 @@ class NestJSProvider extends ChangeNotifier {
     String email,
     String password,
   ) async {
+    // Limpiar token anterior para evitar mezclar sesiones (cliente ↔ trabajador)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+    } catch (_) {}
+    _authToken = null;
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/auth/email/login'),
@@ -63,7 +80,17 @@ class NestJSProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _authToken = data['token'];
+        // Guardar token en SharedPreferences para que otras capas (ApiService) lo reutilicen
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', _authToken!);
+        } catch (e) {
+          debugPrint('Error guardando token en SharedPreferences: $e');
+        }
         _currentUser = data['user'];
+
+        // Sincronizar token con ApiService para que las peticiones antiguas usen el nuevo JWT
+        ApiService.setAuthToken(_authToken!);
         notifyListeners();
         return data;
       } else {
@@ -582,8 +609,9 @@ class NestJSProvider extends ChangeNotifier {
   // Obtener perfil completo del trabajador
   Future<Map<String, dynamic>?> getWorkerProfile() async {
     try {
+      await _ensureTokenLoaded();
       final response = await http.get(
-        Uri.parse('$_baseUrl/workers/profile'),
+        Uri.parse('$_baseUrl/workers/me'),
         headers: _headers,
       );
 
@@ -706,6 +734,7 @@ class NestJSProvider extends ChangeNotifier {
   // Toggle disponibilidad del trabajador
   Future<bool> toggleActiveToday({double? latitude, double? longitude}) async {
     try {
+      await _ensureTokenLoaded();
       final body = <String, dynamic>{};
       if (latitude != null && longitude != null) {
         body['latitude'] = latitude;
@@ -916,6 +945,10 @@ class NestJSProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error limpiando token de SharedPreferences: $e');
     }
+    // Asegurar que ApiService también limpie su token en memoria
+    try {
+      await ApiService.logout();
+    } catch (_) {}
   }
 
   // Cambiar disponibilidad del trabajador (toggle)
@@ -939,6 +972,7 @@ class NestJSProvider extends ChangeNotifier {
   // Obtener estadísticas del dashboard del trabajador
   Future<Map<String, dynamic>?> getWorkerDashboardStats() async {
     try {
+      await _ensureTokenLoaded();
       final response = await http.get(
         Uri.parse('$_baseUrl/workers/me/dashboard-stats'),
         headers: _headers,
@@ -954,17 +988,44 @@ class NestJSProvider extends ChangeNotifier {
     }
   }
 
-  // Obtener trabajos disponibles para el trabajador
+  // Obtener ofertas pendientes para el trabajador
   Future<List<Map<String, dynamic>>> getWorkerAvailableJobs() async {
     try {
+      await _ensureTokenLoaded();
       final response = await http.get(
-        Uri.parse('$_baseUrl/workers/me/available-jobs'),
+        Uri.parse('$_baseUrl/offers/my-offers?status=pending'),
         headers: _headers,
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return List<Map<String, dynamic>>.from(data['jobs'] ?? []);
+        final List<Map<String, dynamic>> offers =
+            List<Map<String, dynamic>>.from(data);
+
+        // Adaptar al formato que la UI espera
+        return offers.map((offer) {
+          DateTime expires = DateTime.now().add(const Duration(hours: 1));
+          if (offer['expiresAt'] != null) {
+            final parsed = DateTime.tryParse(offer['expiresAt']);
+            if (parsed != null) expires = parsed;
+          }
+
+          return {
+            'id': offer['id'],
+            'title': offer['jobTitle'],
+            'description': offer['jobDescription'],
+            'category': offer['serviceCategoryName'] ?? '',
+            'distanceKm': offer['distance'] is num
+                ? (offer['distance'] as num).toDouble()
+                : double.tryParse(offer['distance'].toString()) ?? 0.0,
+            'estimatedEarnings': offer['proposedBudget'] is num
+                ? (offer['proposedBudget'] as num).toDouble()
+                : double.tryParse(offer['proposedBudget'].toString()) ?? 0.0,
+            'urgency': offer['urgency'] ?? 'Media',
+            'location': offer['jobAddress'] ?? '',
+            'expiresAt': expires,
+          };
+        }).toList();
       }
       return [];
     } catch (e) {
@@ -974,10 +1035,11 @@ class NestJSProvider extends ChangeNotifier {
   }
 
   // Aceptar trabajo
-  Future<bool> acceptJob(int jobId) async {
+  Future<bool> acceptJob(int offerId) async {
     try {
+      await _ensureTokenLoaded();
       final response = await http.post(
-        Uri.parse('$_baseUrl/workers/me/accept-job/$jobId'),
+        Uri.parse('$_baseUrl/offers/$offerId/accept'),
         headers: _headers,
       );
 
@@ -989,10 +1051,11 @@ class NestJSProvider extends ChangeNotifier {
   }
 
   // Rechazar trabajo
-  Future<bool> rejectJob(int jobId) async {
+  Future<bool> rejectJob(int offerId) async {
     try {
+      await _ensureTokenLoaded();
       final response = await http.post(
-        Uri.parse('$_baseUrl/workers/me/reject-job/$jobId'),
+        Uri.parse('$_baseUrl/offers/$offerId/reject'),
         headers: _headers,
       );
 
