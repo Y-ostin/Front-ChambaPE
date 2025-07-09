@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/nestjs_provider.dart';
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
@@ -19,6 +20,13 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
 
   bool _isActiveToday = false;
   bool _isLoading = false;
+
+  Timer? _pollingTimer;
+  Timer? _offerTimer;
+  Map<String, dynamic>? _currentOffer;
+  int _offerSecondsLeft = 30;
+  bool _showOfferPush = false;
+  Position? _currentPosition;
 
   // Mock data - después se cargará del backend
   final Map<String, dynamic> _stats = {
@@ -54,6 +62,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    _pollingTimer?.cancel();
+    _offerTimer?.cancel();
     super.dispose();
   }
 
@@ -123,8 +133,15 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
 
       // Actualizar estado local y recargar datos
       setState(() => _isActiveToday = !_isActiveToday);
+      
+      // Recargar datos y manejar polling según el estado
       await _loadWorkerData();
-
+      if (_isActiveToday) {
+        await _requestLocationAndStartPolling();
+      } else {
+        _stopPolling();
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_isActiveToday
@@ -140,6 +157,227 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _requestLocationAndStartPolling() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+        throw Exception('Permiso de ubicación denegado');
+      }
+      _currentPosition = await Geolocator.getCurrentPosition();
+      _startPolling();
+    } catch (e) {
+      print('Error obteniendo ubicación: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de ubicación: $e'), backgroundColor: Colors.red),
+      );
+      setState(() => _isActiveToday = false);
+    }
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pollForOffers());
+    _pollForOffers();
+  }
+
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _offerTimer?.cancel();
+    setState(() {
+      _showOfferPush = false;
+      _currentOffer = null;
+      _offerSecondsLeft = 30;
+    });
+  }
+
+  Future<void> _pollForOffers() async {
+    if (!_isActiveToday || _showOfferPush) return;
+    try {
+      final nestJSProvider = context.read<NestJSProvider>();
+      final matches = await nestJSProvider.getMyMatches(
+        latitude: _currentPosition?.latitude,
+        longitude: _currentPosition?.longitude,
+      );
+      if (matches.isNotEmpty) {
+        setState(() {
+          _currentOffer = matches[0];
+          _showOfferPush = true;
+          _offerSecondsLeft = 30;
+        });
+        _startOfferTimer();
+      }
+    } catch (e) {
+      print('Error polling matches: $e');
+    }
+  }
+
+  void _startOfferTimer() {
+    _offerTimer?.cancel();
+    _offerTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_offerSecondsLeft <= 1) {
+        timer.cancel();
+        await _handleOfferTimeout();
+      } else {
+        setState(() {
+          _offerSecondsLeft--;
+        });
+      }
+    });
+  }
+
+  Future<void> _handleOfferTimeout() async {
+    if (_currentOffer != null) {
+      final nestJSProvider = context.read<NestJSProvider>();
+      try {
+        await nestJSProvider.rejectMatch(_currentOffer!['id'], reason: 'timeout');
+      } catch (e) {
+        print('Error rechazando por timeout: $e');
+      }
+    }
+    setState(() {
+      _showOfferPush = false;
+      _currentOffer = null;
+      _offerSecondsLeft = 30;
+    });
+    // Buscar siguiente oferta
+    _pollForOffers();
+  }
+
+  Future<void> _acceptCurrentOffer() async {
+    if (_currentOffer != null) {
+      final nestJSProvider = context.read<NestJSProvider>();
+      try {
+        await nestJSProvider.acceptMatch(_currentOffer!['id']);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Trabajo aceptado exitosamente'), backgroundColor: Colors.green),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+    setState(() {
+      _showOfferPush = false;
+      _currentOffer = null;
+      _offerSecondsLeft = 30;
+    });
+    // Buscar siguiente oferta
+    _pollForOffers();
+  }
+
+  Future<void> _rejectCurrentOffer() async {
+    if (_currentOffer != null) {
+      final nestJSProvider = context.read<NestJSProvider>();
+      try {
+        await nestJSProvider.rejectMatch(_currentOffer!['id'], reason: 'manual');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Trabajo rechazado'), backgroundColor: Colors.orange),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+    setState(() {
+      _showOfferPush = false;
+      _currentOffer = null;
+      _offerSecondsLeft = 30;
+    });
+    // Buscar siguiente oferta
+    _pollForOffers();
+  }
+
+  Widget _buildOfferPush() {
+    if (!_showOfferPush || _currentOffer == null) return const SizedBox.shrink();
+    final offer = _currentOffer!;
+    return Positioned(
+      top: 80,
+      left: 16,
+      right: 16,
+      child: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    offer['job']?['title'] ?? 'Oferta de trabajo',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  CircleAvatar(
+                    backgroundColor: Colors.orange,
+                    child: Text('$_offerSecondsLeft', style: const TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(offer['job']?['description'] ?? '', style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(offer['job']?['location'] ?? '', style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.attach_money, size: 16, color: Colors.green),
+                  const SizedBox(width: 4),
+                  Text('S/. ${offer['job']?['estimatedEarnings'] ?? ''}', style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _rejectCurrentOffer,
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Rechazar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _acceptCurrentOffer,
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                      child: const Text('Aceptar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _acceptJob(int jobId) async {
@@ -657,31 +895,34 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Column(
-            children: [
-              _buildHeader(),
-
-              Expanded(
-                child:
-                    _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : SingleChildScrollView(
+      body: Stack(
+        children: [
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(
+                    child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : SingleChildScrollView(
                           child: Column(
                             children: [
                               _buildStatsSection(),
                               _buildAvailableJobsSection(),
-                              const SizedBox(height: 100), // Espacio para FAB
+                              const SizedBox(height: 100),
                             ],
                           ),
                         ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          _buildOfferPush(),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _loadWorkerData,

@@ -1099,4 +1099,44 @@ class NestJSProvider extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  // Obtener matches para el trabajador actual
+  Future<List<dynamic>> getMyMatches({double? latitude, double? longitude}) async {
+    final queryParams = <String, String>{};
+    if (latitude != null) queryParams['latitude'] = latitude.toString();
+    if (longitude != null) queryParams['longitude'] = longitude.toString();
+    final uri = Uri.parse('$_baseUrl/matching/my-matches').replace(queryParameters: queryParams);
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return List<dynamic>.from(jsonDecode(response.body));
+    } else {
+      throw Exception('Error obteniendo matches: ${response.body}');
+    }
+  }
+
+  // Aceptar una oferta (match)
+  Future<dynamic> acceptMatch(int matchId) async {
+    final uri = Uri.parse('$_baseUrl/matching/match/$matchId/accept');
+    final response = await http.patch(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error aceptando oferta: ${response.body}');
+    }
+  }
+
+  // Rechazar una oferta (match)
+  Future<dynamic> rejectMatch(int matchId, {String? reason}) async {
+    final uri = Uri.parse('$_baseUrl/matching/match/$matchId/reject');
+    final response = await http.patch(
+      uri,
+      headers: _headers,
+      body: reason != null ? jsonEncode({'reason': reason}) : null,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error rechazando oferta: ${response.body}');
+    }
+  }
 }

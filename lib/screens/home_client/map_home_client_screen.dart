@@ -380,6 +380,20 @@ class _MapHomeClientScreenState extends State<MapHomeClientScreen> {
                         onPressed: () async {
                           if (!_requestFormKey.currentState!.validate()) return;
                           Navigator.pop(ctx);
+                          // DEBUG: Mostrar token JWT antes de la petición
+                          final token = await ApiService.getToken();
+                          print('DEBUG - Token JWT antes de crear solicitud:');
+                          print(token);
+                          print('DEBUG - Datos enviados:');
+                          print({
+                            'title': 'Solicitud de servicio',
+                            'description': _reqDescription,
+                            'address': 'Ubicación',
+                            'latitude': _currentLatLng!.latitude,
+                            'longitude': _currentLatLng!.longitude,
+                            'serviceCategoryId': _reqCategoryId,
+                            'estimatedBudget': (_reqBudgetRange.start + _reqBudgetRange.end) / 2,
+                          });
                           final result = await ApiService.createServiceRequest(
                             title: 'Solicitud de servicio',
                             description: _reqDescription,

@@ -1,6 +1,6 @@
 class ApiConfig {
   // URL base del backend NestJS
-  static const String baseUrl = 'http://192.168.0.64:3000';
+  static const String baseUrl = 'http://192.168.15.80:3000';
 
   // Endpoints de autenticación
   static const String loginEndpoint = '/auth/email/login';
