@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class ValidateService {
-  static const String baseUrl = 'http://192.168.0.64:3000';
+  static const String baseUrl = 'http://192.168.15.80:3000';
 
   // Validar DNI y obtener nombres/apellidos
   static Future<Map<String, dynamic>?> getDniData(String dni) async {

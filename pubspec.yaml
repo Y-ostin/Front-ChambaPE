@@ -49,19 +49,12 @@ dependencies:
   shared_preferences: ^2.2.2
   image_picker: ^1.0.7
   
-  # Firebase
-  firebase_core: ^2.30.0
-  firebase_auth: ^4.20.0
-  cloud_firestore: ^4.17.0
-  firebase_storage: ^11.7.0
-  google_sign_in: ^6.3.0
-  
   # HTTP & API
   http: ^1.1.0
   dio: ^5.4.0
   
   # Localization
-  intl: ^0.20.2
+  intl: ^0.19.0
   
   # Location services
   geolocator: ^10.1.0
